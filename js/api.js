@@ -3,8 +3,10 @@
 // ==   (تجمع بين منطق المستخدمين ومنطق المشرف)                ==
 // =============================================================
 
-import { supabase } from '../config.js';
-import { QURAN_API_BASE_URL } from '../config.js';
+// ▼▼▼ هذا هو السطر الذي تم التأكد من صحته ▼▼▼
+// المسار './config.js' يعني: "ابحث عن config.js في نفس المجلد الحالي (js)"
+import { supabase, QURAN_API_BASE_URL } from './config.js';
+
 
 // --- 1. دوال المصادقة (Authentication) ---
 export async function signUpUser(email, password, username) {
@@ -142,7 +144,7 @@ export async function saveResult(resultData) {
 
 
 // =============================================================
-// ==      ▼▼▼ دوال المشرف (Admin Operations) - تمت إعادتها ▼▼▼      ==
+// ==      دوال المشرف (Admin Operations)                     ==
 // =============================================================
 
 export async function fetchAllPlayers() {
@@ -189,4 +191,3 @@ export async function updatePlayerByAdmin(playerId, updates) {
     }
     return { error };
 }
-
