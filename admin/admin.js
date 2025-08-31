@@ -1,42 +1,229 @@
 // =============================================================
-// ==      ملف منطق لوحة التحكم (مع ميزة تعديل اللاعبين)      ==
+// ==      ملف لوحة التحكم للمشرف (النسخة النهائية المصححة)     ==
 // =============================================================
 
-import { supabase } from '../config.js';
+import { supabase } from '../js/config.js';
 import { 
     fetchAllPlayers, 
     fetchAllStoreItems, 
     addStoreItem, 
-    deleteStoreItem,
+    deleteStoreItem, 
     getDashboardStats,
-    updatePlayerByAdmin // <-- استيراد الدالة الجديدة
+    updatePlayerByAdmin 
 } from '../js/api.js';
 
 // --- عناصر الواجهة ---
 const loginScreen = document.getElementById('login-screen');
 const dashboardScreen = document.getElementById('dashboard-screen');
-const loginButton = document.getElementById('admin-login-button');
-const logoutButton = document.getElementById('logout-button');
+const loginForm = document.getElementById('login-form');
 const loginError = document.getElementById('login-error');
+const welcomeMessage = document.getElementById('welcome-message');
 const playersTableBody = document.getElementById('players-table-body');
-const playerSearchInput = document.getElementById('player-search');
-const storeItemsList = document.getElementById('store-items-list');
-const addItemButton = document.getElementById('add-item-button');
-const totalPlayersStat = document.getElementById('total-players-stat');
-const totalQuizzesStat = document.getElementById('total-quizzes-stat');
-const averageScoreStat = document.getElementById('average-score-stat');
-
-// ▼▼▼ عناصر واجهة التعديل الجديدة ▼▼▼
-const editPlayerModal = document.getElementById('edit-player-modal');
+const storeTableBody = document.getElementById('store-table-body');
+const addItemForm = document.getElementById('add-item-form');
+const statsContainer = document.getElementById('stats-container');
+const editModal = document.getElementById('edit-player-modal');
+const editForm = document.getElementById('edit-player-form');
 const closeModalButton = document.querySelector('.close-button');
-const savePlayerChangesButton = document.getElementById('save-player-changes-button');
-const editPlayerIdInput = document.getElementById('edit-player-id');
-const editPlayerUsernameInput = document.getElementById('edit-player-username');
-const editPlayerXpInput = document.getElementById('edit-player-xp');
-const editPlayerDiamondsInput = document.getElementById('edit-player-diamonds');
-// ▲▲▲ نهاية عناصر الواجهة الجديدة ▲▲▲
 
-let allPlayers = []; // لتخزين جميع اللاعبين محليًا
+let currentEditingPlayerId = null; // متغير لتخزين ID اللاعب الذي يتم تعديله
+
+// --- دوال عرض الشاشات ---
+const showLoginScreen = () => {
+    loginScreen.classList.remove('hidden');
+    dashboardScreen.classList.add('hidden');
+};
+
+const showDashboard = async () => {
+    loginScreen.classList.add('hidden');
+    dashboardScreen.classList.remove('hidden');
+    const { data: { user } } = await supabase.auth.getUser();
+    welcomeMessage.textContent = `مرحباً بك أيها المشرف، ${user.email}`;
+    
+    // تحميل كل البيانات عند عرض لوحة التحكم
+    await loadAllData();
+};
+
+// --- تحميل البيانات ---
+const loadAllData = async () => {
+    await populatePlayersTable();
+    await populateStoreTable();
+    await loadStats();
+};
+
+// --- منطق اللاعبين ---
+const populatePlayersTable = async () => {
+    const players = await fetchAllPlayers();
+    playersTableBody.innerHTML = ''; // تفريغ الجدول قبل الملء
+    if (players) {
+        players.forEach(player => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${player.username || 'لا يوجد اسم'}</td>
+                <td>${player.email}</td>
+                <td>${player.xp}</td>
+                <td>${player.diamonds}</td>
+                <td>${new Date(player.created_at).toLocaleDateString()}</td>
+                <td>
+                    <button class="edit-btn" data-player-id="${player.id}">تعديل</button>
+                </td>
+            `;
+            playersTableBody.appendChild(row);
+        });
+        // ربط الأحداث بعد إنشاء الأزرار
+        document.querySelectorAll('.edit-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const playerId = e.target.dataset.playerId;
+                const playerRow = e.target.closest('tr');
+                const playerData = {
+                    id: playerId,
+                    username: playerRow.cells[0].textContent,
+                    xp: playerRow.cells[2].textContent,
+                    diamonds: playerRow.cells[3].textContent
+                };
+                openEditModal(playerData);
+            });
+        });
+    }
+};
+
+// --- منطق نافذة التعديل ---
+const openEditModal = (player) => {
+    currentEditingPlayerId = player.id; // تخزين ID اللاعب الحالي
+    document.getElementById('edit-username').value = player.username;
+    document.getElementById('edit-xp').value = player.xp;
+    document.getElementById('edit-diamonds').value = player.diamonds;
+    editModal.classList.remove('hidden');
+};
+
+const closeEditModal = () => {
+    editModal.classList.add('hidden');
+    currentEditingPlayerId = null; // مسح ID اللاعب عند الإغلاق
+};
+
+// --- منطق المتجر ---
+const populateStoreTable = async () => {
+    const items = await fetchAllStoreItems();
+    storeTableBody.innerHTML = '';
+    if (items) {
+        items.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.price}</td>
+                <td>${item.type}</td>
+                <td>
+                    <button class="delete-btn" data-item-id="${item.id}">حذف</button>
+                </td>
+            `;
+            storeTableBody.appendChild(row);
+        });
+        // ربط الأحداث بعد إنشاء الأزرار
+        document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const itemId = e.target.dataset.itemId;
+                if (confirm('هل أنت متأكد من أنك تريد حذف هذا العنصر؟')) {
+                    await deleteStoreItem(itemId);
+                    await populateStoreTable(); // إعادة تحميل الجدول
+                }
+            });
+        });
+    }
+};
+
+// --- منطق الإحصائيات ---
+const loadStats = async () => {
+    const stats = await getDashboardStats();
+    statsContainer.innerHTML = 'جاري تحميل الإحصائيات...';
+    if (stats) {
+        statsContainer.innerHTML = `
+            <div class="stat-card">
+                <h4>إجمالي اللاعبين</h4>
+                <p>${stats.total_players}</p>
+            </div>
+            <div class="stat-card">
+                <h4>إجمالي الاختبارات</h4>
+                <p>${stats.total_quizzes}</p>
+            </div>
+            <div class="stat-card">
+                <h4>متوسط النقاط</h4>
+                <p>${stats.average_score ? stats.average_score.toFixed(2) : 0}</p>
+            </div>
+        `;
+    } else {
+        statsContainer.innerHTML = 'فشل تحميل الإحصائيات.';
+    }
+};
+
+// --- معالجات الأحداث (Event Handlers) ---
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.classList.add('hidden');
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+        loginError.textContent = 'بيانات اعتماد تسجيل الدخول غير صالحة.';
+        loginError.classList.remove('hidden');
+    } else {
+        const userRole = await getUserRole();
+        if (userRole === 'admin') {
+            await showDashboard();
+        } else {
+            loginError.textContent = 'ليس لديك صلاحيات المشرف.';
+            loginError.classList.remove('hidden');
+            await supabase.auth.signOut();
+        }
+    }
+});
+
+addItemForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newItem = {
+        id: e.target.id.value,
+        name: e.target.name.value,
+        description: e.target.description.value,
+        price: parseInt(e.target.price.value, 10),
+        type: e.target.type.value,
+        value: e.target.value.value,
+        sortOrder: parseInt(e.target.sortOrder.value, 10)
+    };
+    await addStoreItem(newItem);
+    addItemForm.reset();
+    await populateStoreTable();
+});
+
+editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentEditingPlayerId) {
+        alert("خطأ: لا يوجد لاعب محدد للتعديل.");
+        return;
+    }
+    const updates = {
+        username: document.getElementById('edit-username').value,
+        xp: parseInt(document.getElementById('edit-xp').value, 10),
+        diamonds: parseInt(document.getElementById('edit-diamonds').value, 10)
+    };
+    const { error } = await updatePlayerByAdmin(currentEditingPlayerId, updates);
+    if (error) {
+        alert(`فشل تحديث بيانات اللاعب: ${error.message}`);
+    } else {
+        alert("تم تحديث بيانات اللاعب بنجاح!");
+        closeEditModal();
+        await populatePlayersTable(); // إعادة تحميل الجدول
+    }
+});
+
+closeModalButton.addEventListener('click', closeEditModal);
+
+// --- التحقق من الدور ---
+const getUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase.from('players').select('role').eq('id', user.id).single();
+    if (error) return null;
+    return data ? data.role : null;
+};
 
 // --- التحقق من حالة تسجيل الدخول عند تحميل الصفحة ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -44,224 +231,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (session) {
         const userRole = await getUserRole();
         if (userRole === 'admin') {
-            showDashboard();
+            await showDashboard();
         } else {
             showLoginScreen();
-            await supabase.auth.signOut(); // تسجيل الخروج إذا لم يكن مشرفًا
+            await supabase.auth.signOut();
         }
     } else {
         showLoginScreen();
-    }
-});
-
-// --- دوال التحكم بالواجهة ---
-function showLoginScreen() {
-    loginScreen.classList.remove('hidden');
-    dashboardScreen.classList.add('hidden');
-}
-
-async function showDashboard() {
-    loginScreen.classList.add('hidden');
-    dashboardScreen.classList.remove('hidden');
-    await loadDashboardData();
-}
-
-// --- منطق المصادقة ---
-loginButton.addEventListener('click', async () => {
-    const email = document.getElementById('admin-email').value;
-    const password = document.getElementById('admin-password').value;
-    loginError.textContent = '';
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-        loginError.textContent = 'بيانات اعتماد تسجيل الدخول غير صالحة.';
-        return;
-    }
-
-    const userRole = await getUserRole();
-    if (userRole === 'admin') {
-        showDashboard();
-    } else {
-        loginError.textContent = 'ليس لديك صلاحيات المشرف.';
-        await supabase.auth.signOut();
-    }
-});
-
-logoutButton.addEventListener('click', async () => {
-    await supabase.auth.signOut();
-    showLoginScreen();
-});
-
-async function getUserRole() {
-    const { data, error } = await supabase.rpc('get_user_role');
-    if (error) {
-        console.error('Error fetching user role:', error);
-        return null;
-    }
-    return data;
-}
-
-// --- تحميل بيانات لوحة التحكم ---
-async function loadDashboardData() {
-    // تحميل كل البيانات بالتوازي
-    const [players, storeItems, stats] = await Promise.all([
-        fetchAllPlayers(),
-        fetchAllStoreItems(),
-        getDashboardStats()
-    ]);
-
-    if (players) {
-        allPlayers = players;
-        renderPlayersTable(allPlayers);
-    }
-    if (storeItems) {
-        renderStoreItems(storeItems);
-    }
-    if (stats) {
-        totalPlayersStat.textContent = stats.total_players;
-        totalQuizzesStat.textContent = stats.total_quizzes;
-        averageScoreStat.textContent = parseFloat(stats.average_score).toFixed(2) + '%';
-    }
-}
-
-// --- إدارة اللاعبين ---
-function renderPlayersTable(players) {
-    playersTableBody.innerHTML = '';
-    players.forEach(player => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${player.id.substring(0, 8)}...</td>
-            <td>${player.username}</td>
-            <td>${player.email}</td>
-            <td>${player.xp}</td>
-            <td>${player.diamonds}</td>
-            <td>${new Date(player.created_at).toLocaleDateString()}</td>
-            <td>
-                <button class="edit-btn" data-player-id="${player.id}">تعديل</button>
-            </td>
-        `;
-        playersTableBody.appendChild(row);
-    });
-
-    // ▼▼▼ إضافة مستمعي الأحداث لأزرار التعديل الجديدة ▼▼▼
-    document.querySelectorAll('.edit-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const playerId = e.target.dataset.playerId;
-            openEditModal(playerId);
-        });
-    });
-}
-
-playerSearchInput.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.toLowerCase();
-    const filteredPlayers = allPlayers.filter(player => 
-        player.username.toLowerCase().includes(searchTerm) ||
-        player.email.toLowerCase().includes(searchTerm)
-    );
-    renderPlayersTable(filteredPlayers);
-});
-
-// --- إدارة المتجر ---
-// (تبقى دوال إدارة المتجر كما هي)
-function renderStoreItems(items) {
-    storeItemsList.innerHTML = '';
-    items.forEach(item => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <span>${item.name} (ID: ${item.id}) - ${item.price} 💎</span>
-            <button class="delete-btn" data-item-id="${item.id}">&times;</button>
-        `;
-        li.querySelector('.delete-btn').addEventListener('click', async (e) => {
-            const itemId = e.target.dataset.itemId;
-            if (confirm(`هل أنت متأكد من حذف العنصر ${itemId}؟`)) {
-                await deleteStoreItem(itemId);
-                await loadDashboardData(); // إعادة تحميل البيانات
-            }
-        });
-        storeItemsList.appendChild(li);
-    });
-}
-
-addItemButton.addEventListener('click', async () => {
-    const newItem = {
-        id: document.getElementById('item-id').value,
-        name: document.getElementById('item-name').value,
-        description: document.getElementById('item-description').value,
-        price: parseInt(document.getElementById('item-price').value, 10),
-        type: document.getElementById('item-type').value,
-        value: document.getElementById('item-value').value,
-        sort_order: parseInt(document.getElementById('item-sort-order').value, 10)
-    };
-
-    if (!newItem.id || !newItem.name || isNaN(newItem.price)) {
-        alert('يرجى ملء الحقول المطلوبة (المعرف، الاسم، السعر) بشكل صحيح.');
-        return;
-    }
-
-    await addStoreItem(newItem);
-    alert('تمت إضافة العنصر بنجاح!');
-    await loadDashboardData(); // إعادة تحميل البيانات
-});
-
-
-// ▼▼▼ دوال منطق تعديل اللاعب الجديدة ▼▼▼
-
-/**
- * يفتح نافذة التعديل ويملؤها ببيانات اللاعب المحدد.
- * @param {string} playerId 
- */
-function openEditModal(playerId) {
-    const player = allPlayers.find(p => p.id === playerId);
-    if (!player) return;
-
-    editPlayerIdInput.value = player.id;
-    editPlayerUsernameInput.value = player.username;
-    editPlayerXpInput.value = player.xp;
-    editPlayerDiamondsInput.value = player.diamonds;
-
-    editPlayerModal.classList.remove('hidden');
-}
-
-/**
- * يغلق نافذة التعديل.
- */
-function closeEditModal() {
-    editPlayerModal.classList.add('hidden');
-}
-
-// مستمع حدث لإغلاق النافذة عند النقر على زر الإغلاق (×)
-closeModalButton.addEventListener('click', closeEditModal);
-
-// مستمع حدث لإغلاق النافذة عند النقر خارجها
-window.addEventListener('click', (event) => {
-    if (event.target == editPlayerModal) {
-        closeEditModal();
-    }
-});
-
-// مستمع حدث لحفظ التغييرات
-savePlayerChangesButton.addEventListener('click', async () => {
-    const playerId = editPlayerIdInput.value;
-    const updates = {
-        username: editPlayerUsernameInput.value,
-        xp: parseInt(editPlayerXpInput.value, 10),
-        diamonds: parseInt(editPlayerDiamondsInput.value, 10)
-    };
-
-    if (!updates.username || isNaN(updates.xp) || isNaN(updates.diamonds)) {
-        alert('يرجى التأكد من أن جميع الحقول مملوءة بشكل صحيح.');
-        return;
-    }
-
-    // استدعاء دالة الواجهة الخلفية للتحديث
-    const { error } = await updatePlayerByAdmin(playerId, updates);
-
-    if (error) {
-        alert(`فشل تحديث بيانات اللاعب: ${error.message}`);
-    } else {
-        alert('تم تحديث بيانات اللاعب بنجاح!');
-        closeEditModal();
-        await loadDashboardData(); // إعادة تحميل البيانات لتعكس التغييرات
     }
 });
