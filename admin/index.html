@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة تحكم المشرف</title>
-    <!-- المسار ../style.css صحيح لأنه يخرج من مجلد admin ثم يجد style.css -->
     <link rel="stylesheet" href="../style.css"> 
     <style>
         /* (نفس أنماط CSS السابقة) */
@@ -24,17 +23,17 @@
         </form>
     </div>
 
-    <!-- شاشة لوحة التحكم الرئيسية -->
+    <!-- شاشة لوحة التحكم الرئيسية (مخفية بشكل افتراضي) -->
     <div id="dashboard-screen" class="container hidden">
         <h2 id="welcome-message">مرحباً بك أيها المشرف</h2>
         <hr>
-        <!-- (بقية محتوى لوحة التحكم) -->
         <div class="admin-section"><h3>نظرة عامة</h3><div id="stats-container"></div></div>
         <div class="admin-section"><h3>إدارة اللاعبين</h3><div style="overflow-x:auto;"><table><thead><tr><th>اسم المستخدم</th><th>البريد الإلكتروني</th><th>الخبرة (XP)</th><th>الألماس</th><th>تاريخ الانضمام</th><th>إجراء</th></tr></thead><tbody id="players-table-body"></tbody></table></div></div>
         <div class="admin-section"><h3>إدارة المتجر</h3><h4>إضافة عنصر جديد</h4><form id="add-item-form" style="display: flex; flex-wrap: wrap; gap: 10px;"><input type="text" id="id" placeholder="ID العنصر (انجليزي)" required><input type="text" id="name" placeholder="اسم العنصر" required><input type="text" id="description" placeholder="الوصف" required><input type="number" id="price" placeholder="السعر" required><input type="text" id="type" placeholder="النوع (page, qari, etc)" required><input type="text" id="value" placeholder="القيمة (رقم الصفحة مثلاً)"><input type="number" id="sortOrder" placeholder="ترتيب العرض" required><button type="submit">إضافة العنصر للمتجر</button></form><hr><h4>العناصر الحالية</h4><table><thead><tr><th>اسم العنصر</th><th>السعر</th><th>النوع</th><th>إجراء</th></tr></thead><tbody id="store-table-body"></tbody></table></div>
     </div>
 
-    <!-- نافذة تعديل بيانات اللاعب -->
+    <!-- ▼▼▼ هذا هو السطر الذي تم إصلاحه ▼▼▼ -->
+    <!-- نافذة تعديل بيانات اللاعب (يجب أن تكون مخفية بشكل افتراضي) -->
     <div id="edit-player-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close-button">&times;</span>
@@ -48,11 +47,9 @@
         </div>
     </div>
 
-    <!-- ▼▼▼ هذا هو السطر الحاسم الذي كان مفقودًا ▼▼▼ -->
-    <!-- 1. تحميل مكتبة Supabase أولاً -->
+    <!-- تحميل السكربتات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- 2. استيراد ملف admin.js الذي سيستخدم المكتبة -->
+    <!-- يمكنك الآن إزالة الكود التشخيصي من admin.js والعودة إلى النسخة النظيفة -->
     <script type="module" src="admin.js"></script>
 </body>
 </html>
