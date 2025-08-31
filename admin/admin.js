@@ -1,12 +1,8 @@
 // =============================================================
-// ==      ملف لوحة التحكم للمشرف (مع مسار الاستيراد الموحد)     ==
+// ==      ملف لوحة التحكم للمشرف (النسخة النهائية المؤكدة)     ==
 // =============================================================
 
-// ▼▼▼ هذا هو السطر الذي تم تصحيحه ▼▼▼
-// المسار '../js/config.js' يعني: "اخرج من مجلد admin، ثم ادخل مجلد js، ثم ابحث عن config.js"
 import { supabase } from '../js/config.js';
-
-// ▼▼▼ هذا السطر أيضًا يحتاج إلى تحديث مساره ▼▼▼
 import { 
     fetchAllPlayers, 
     fetchAllStoreItems, 
@@ -143,58 +139,67 @@ const loadStats = async () => {
 };
 
 // --- معالجات الأحداث (Event Handlers) ---
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    loginError.classList.add('hidden');
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-        loginError.textContent = 'بيانات اعتماد تسجيل الدخول غير صالحة.';
-        loginError.classList.remove('hidden');
-    } else {
-        const userRole = await getUserRole();
-        if (userRole === 'admin') {
-            await showDashboard();
-        } else {
-            loginError.textContent = 'ليس لديك صلاحيات المشرف.';
+// ▼▼▼ التحقق من وجود العناصر قبل ربط الأحداث ▼▼▼
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.classList.add('hidden');
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+            loginError.textContent = 'بيانات اعتماد تسجيل الدخول غير صالحة.';
             loginError.classList.remove('hidden');
-            await supabase.auth.signOut();
+        } else {
+            const userRole = await getUserRole();
+            if (userRole === 'admin') {
+                await showDashboard();
+            } else {
+                loginError.textContent = 'ليس لديك صلاحيات المشرف.';
+                loginError.classList.remove('hidden');
+                await supabase.auth.signOut();
+            }
         }
-    }
-});
+    });
+}
 
-addItemForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const newItem = {
-        id: e.target.id.value, name: e.target.name.value, description: e.target.description.value,
-        price: parseInt(e.target.price.value, 10), type: e.target.type.value,
-        value: e.target.value.value, sortOrder: parseInt(e.target.sortOrder.value, 10)
-    };
-    await addStoreItem(newItem);
-    addItemForm.reset();
-    await populateStoreTable();
-});
+if (addItemForm) {
+    addItemForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newItem = {
+            id: e.target.id.value, name: e.target.name.value, description: e.target.description.value,
+            price: parseInt(e.target.price.value, 10), type: e.target.type.value,
+            value: e.target.value.value, sortOrder: parseInt(e.target.sortOrder.value, 10)
+        };
+        await addStoreItem(newItem);
+        addItemForm.reset();
+        await populateStoreTable();
+    });
+}
 
-editForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!currentEditingPlayerId) return alert("خطأ: لا يوجد لاعب محدد للتعديل.");
-    const updates = {
-        username: document.getElementById('edit-username').value,
-        xp: parseInt(document.getElementById('edit-xp').value, 10),
-        diamonds: parseInt(document.getElementById('edit-diamonds').value, 10)
-    };
-    const { error } = await updatePlayerByAdmin(currentEditingPlayerId, updates);
-    if (error) {
-        alert(`فشل تحديث بيانات اللاعب: ${error.message}`);
-    } else {
-        alert("تم تحديث بيانات اللاعب بنجاح!");
-        closeEditModal();
-        await populatePlayersTable();
-    }
-});
+if (editForm) {
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentEditingPlayerId) return alert("خطأ: لا يوجد لاعب محدد للتعديل.");
+        const updates = {
+            username: document.getElementById('edit-username').value,
+            xp: parseInt(document.getElementById('edit-xp').value, 10),
+            diamonds: parseInt(document.getElementById('edit-diamonds').value, 10)
+        };
+        const { error } = await updatePlayerByAdmin(currentEditingPlayerId, updates);
+        if (error) {
+            alert(`فشل تحديث بيانات اللاعب: ${error.message}`);
+        } else {
+            alert("تم تحديث بيانات اللاعب بنجاح!");
+            closeEditModal();
+            await populatePlayersTable();
+        }
+    });
+}
 
-closeModalButton.addEventListener('click', closeEditModal);
+if (closeModalButton) {
+    closeModalButton.addEventListener('click', closeEditModal);
+}
 
 // --- التحقق من الدور ---
 const getUserRole = async () => {
