@@ -1,5 +1,5 @@
 // =============================================================
-// ==      ملف لوحة التحكم للمشرف (النسخة النهائية النظيفة)     ==
+// ==      ملف لوحة التحكم للمشرف (النسخة النهائية مع إصلاح style)     ==
 // =============================================================
 
 import { supabase } from '../js/config.js';
@@ -82,17 +82,17 @@ const populatePlayersTable = async () => {
     }
 };
 
-// --- منطق نافذة التعديل ---
+// --- منطق نافذة التعديل (باستخدام style.display) ---
 const openEditModal = (player) => {
     currentEditingPlayerId = player.id;
     document.getElementById('edit-username').value = player.username;
     document.getElementById('edit-xp').value = player.xp;
     document.getElementById('edit-diamonds').value = player.diamonds;
-    editModal.classList.remove('hidden');
+    editModal.style.display = 'flex'; // استخدام flex لإظهار النافذة وتوسيطها
 };
 
 const closeEditModal = () => {
-    editModal.classList.add('hidden');
+    editModal.style.display = 'none'; // استخدام none لإخفاء النافذة
     currentEditingPlayerId = null;
 };
 
