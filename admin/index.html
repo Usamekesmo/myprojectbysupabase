@@ -4,129 +4,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة تحكم المشرف</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="../style.css"> <!-- استخدام نفس ملف الأنماط الرئيسي -->
+    <style>
+        /* أنماط إضافية خاصة بلوحة التحكم */
+        #dashboard-screen { max-width: 1200px; }
+        .admin-section { margin-bottom: 40px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+        th { background-color: #f2f2f2; color: #004d40; }
+        .edit-btn, .delete-btn { padding: 5px 10px; font-size: 14px; cursor: pointer; }
+        .edit-btn { background-color: #ffc107; border: none; border-radius: 3px; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; border-radius: 3px; }
+        .stat-card { background-color: #e0f2f1; padding: 20px; border-radius: 8px; text-align: center; }
+        #stats-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        
+        /* أنماط نافذة التعديل */
+        .modal {
+            position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe; margin: auto; padding: 25px;
+            border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 10px;
+        }
+        .close-button {
+            color: #aaa; float: left; font-size: 28px; font-weight: bold; cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- شاشة تسجيل الدخول -->
-        <div id="login-screen">
-            <h1>تسجيل دخول المشرف</h1>
-            <input type="email" id="admin-email" placeholder="البريد الإلكتروني" required>
-            <input type="password" id="admin-password" placeholder="كلمة المرور" required>
-            <button id="admin-login-button">تسجيل الدخول</button>
-            <p id="login-error" class="error-message"></p>
+
+    <!-- شاشة تسجيل الدخول للمشرف -->
+    <div id="login-screen" class="container">
+        <h1>دخول المشرف</h1>
+        <!-- ▼▼▼ الإصلاح الثاني: تصحيح الـ id من login-form إلى edit-player-form (خطأ نسخ ولصق) -->
+        <!-- الصحيح هو أن يكون id="login-form" -->
+        <form id="login-form">
+            <input type="email" id="email" placeholder="البريد الإلكتروني" required>
+            <input type="password" id="password" placeholder="كلمة المرور" required>
+            <button type="submit">دخول</button>
+            <p id="login-error" class="hidden" style="color: red;"></p>
+        </form>
+    </div>
+
+    <!-- شاشة لوحة التحكم الرئيسية -->
+    <div id="dashboard-screen" class="container hidden">
+        <h2 id="welcome-message">مرحباً بك أيها المشرف</h2>
+        <hr>
+
+        <!-- قسم الإحصائيات -->
+        <div class="admin-section">
+            <h3>نظرة عامة</h3>
+            <div id="stats-container"></div>
         </div>
 
-        <!-- لوحة التحكم الرئيسية (مخفية افتراضيًا) -->
-        <div id="dashboard-screen" class="hidden">
-            <header>
-                <h1>لوحة التحكم</h1>
-                <button id="logout-button">تسجيل الخروج</button>
-            </header>
-
-            <!-- قسم الإحصائيات -->
-            <section id="stats-section">
-                <h2>نظرة عامة</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h3>إجمالي اللاعبين</h3>
-                        <p id="total-players-stat">...</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>إجمالي الاختبارات</h3>
-                        <p id="total-quizzes-stat">...</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3>متوسط النقاط</h3>
-                        <p id="average-score-stat">...</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- قسم إدارة اللاعبين -->
-            <section id="player-management-section">
-                <h2>إدارة اللاعبين</h2>
-                <input type="text" id="player-search" placeholder="ابحث عن لاعب بالاسم...">
+        <!-- قسم إدارة اللاعبين -->
+        <div class="admin-section">
+            <h3>إدارة اللاعبين</h3>
+            <div style="overflow-x:auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>الاسم</th>
+                            <th>اسم المستخدم</th>
                             <th>البريد الإلكتروني</th>
                             <th>الخبرة (XP)</th>
                             <th>الألماس</th>
                             <th>تاريخ الانضمام</th>
-                            <!-- ▼▼▼ الإضافة هنا ▼▼▼ -->
-                            <th>إجراءات</th>
+                            <th>إجراء</th>
                         </tr>
                     </thead>
-                    <tbody id="players-table-body">
-                        <!-- سيتم ملء الصفوف هنا بواسطة JavaScript -->
-                    </tbody>
+                    <tbody id="players-table-body"></tbody>
                 </table>
-            </section>
-
-            <!-- قسم إدارة المتجر -->
-            <section id="store-management-section">
-                <h2>إدارة المتجر</h2>
-                <div class="store-management-grid">
-                    <div class="store-list">
-                        <h3>العناصر الحالية</h3>
-                        <ul id="store-items-list">
-                            <!-- سيتم ملء العناصر هنا -->
-                        </ul>
-                    </div>
-                    <div class="add-item-form">
-                        <h3>إضافة عنصر جديد</h3>
-                        <input type="text" id="item-id" placeholder="معرف العنصر (e.g., page_605)">
-                        <input type="text" id="item-name" placeholder="اسم العنصر (e.g., شراء صفحة 605)">
-                        <textarea id="item-description" placeholder="وصف العنصر"></textarea>
-                        <input type="number" id="item-price" placeholder="السعر (بالألماس)">
-                        <select id="item-type">
-                            <option value="page">صفحة</option>
-                            <option value="qari">قارئ</option>
-                            <option value="theme">سمة</option>
-                            <option value="xp_exchange">استبدال خبرة</option>
-                        </select>
-                        <input type="text" id="item-value" placeholder="قيمة العنصر (e.g., 605 للصفحة)">
-                        <input type="number" id="item-sort-order" placeholder="ترتيب العرض">
-                        <button id="add-item-button">إضافة العنصر للمتجر</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ▼▼▼ النافذة المنبثقة لتعديل اللاعب (جديدة بالكامل) ▼▼▼ -->
-            <div id="edit-player-modal" class="modal hidden">
-                <div class="modal-content">
-                    <span class="close-button">&times;</span>
-                    <h2>تعديل بيانات اللاعب</h2>
-                    <input type="hidden" id="edit-player-id">
-                    <div class="form-group">
-                        <label for="edit-player-username">اسم المستخدم:</label>
-                        <input type="text" id="edit-player-username">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-player-xp">نقاط الخبرة (XP):</label>
-                        <input type="number" id="edit-player-xp">
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-player-diamonds">الألماس:</label>
-                        <input type="number" id="edit-player-diamonds">
-                    </div>
-                    <button id="save-player-changes-button">حفظ التغييرات</button>
-                </div>
             </div>
-            <!-- ▲▲▲ نهاية النافذة المنبثقة ▲▲▲ -->
+        </div>
 
-                </div>
+        <!-- قسم إدارة المتجر -->
+        <div class="admin-section">
+            <h3>إدارة المتجر</h3>
+            <h4>إضافة عنصر جديد</h4>
+            <form id="add-item-form" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <input type="text" id="id" placeholder="ID العنصر (انجليزي)" required>
+                <input type="text" id="name" placeholder="اسم العنصر" required>
+                <input type="text" id="description" placeholder="الوصف" required>
+                <input type="number" id="price" placeholder="السعر" required>
+                <input type="text" id="type" placeholder="النوع (page, qari, etc)" required>
+                <input type="text" id="value" placeholder="القيمة (رقم الصفحة مثلاً)">
+                <input type="number" id="sortOrder" placeholder="ترتيب العرض" required>
+                <button type="submit">إضافة العنصر للمتجر</button>
+            </form>
+            <hr>
+            <h4>العناصر الحالية</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم العنصر</th>
+                        <th>السعر</th>
+                        <th>النوع</th>
+                        <th>إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="store-table-body"></tbody>
+            </table>
+        </div>
     </div>
+
+    <!-- نافذة تعديل بيانات اللاعب -->
+    <div id="edit-player-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>تعديل بيانات اللاعب</h2>
+            <form id="edit-player-form">
+                <label for="edit-username">اسم المستخدم:</label>
+                <input type="text" id="edit-username" required>
+                <label for="edit-xp">نقاط الخبرة (XP):</label>
+                <input type="number" id="edit-xp" required>
+                <label for="edit-diamonds">الألماس:</label>
+                <input type="number" id="edit-diamonds" required>
+                <button type="submit">حفظ التغييرات</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ▼▼▼ الإصلاح الأول: إزالة استيراد Supabase المكرر من هنا ▼▼▼ -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> -->
     
-    <!-- ▼▼▼ هذا هو السطر المفقود الذي يجب إضافته ▼▼▼ -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <script type="module" src="../config.js"></script>
+    <!-- استيراد ملفات المشروع -->
     <script type="module" src="admin.js"></script>
 </body>
 </html>
-
-
