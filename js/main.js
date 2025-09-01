@@ -1,5 +1,5 @@
 // =============================================================
-// ==      الملف الرئيسي (main.js) - نسخة نهائية كاملة         ==
+// ==      الملف الرئيسي (main.js) - نسخة نهائية ومُصححة        ==
 // =============================================================
 
 import * as ui from './ui.js';
@@ -64,12 +64,15 @@ async function handleAuthentication() {
     const encodedUsername = btoa(unescape(encodeURIComponent(userName)));
     const safeEncodedUsername = encodedUsername.replace(/=/g, '').replace(/[^a-zA-Z0-9]/g, '');
     const email = `${safeEncodedUsername}@quran-quiz.app`;
-    const password = `default_password_for_${safeEncodedUsername}`;
+    
+    // ▼▼▼ التعديل هنا: تقوية كلمة المرور الافتراضية ▼▼▼
+    const password = `QURAN_QUIZ_#_${safeEncodedUsername}`;
+    // ▲▲▲ نهاية التعديل ▲▲▲
 
     const { error } = await api.signUpUser(email, password, userName);
     if (error) {
         ui.toggleLoader(false);
-        alert(`حدث خطأ: ${error.message}`);
+        alert(`حدث خطأ أثناء تسجيل الدخول. قد يكون هذا الاسم مستخدمًا بالفعل أو هناك مشكلة في الشبكة. الخطأ: ${error.message}`);
         return;
     }
     
@@ -91,7 +94,6 @@ async function postLoginSetup() {
     const levelInfo = progression.getLevelInfo(player.playerData.xp);
     ui.updatePlayerHeader(player.playerData, levelInfo);
 
-    // تحديث قائمة الصفحات المتاحة للاختبار
     updateAvailablePages();
 
     ui.populateQariSelect(ui.qariSelect, player.playerData.inventory);
