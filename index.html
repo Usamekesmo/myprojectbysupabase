@@ -4,62 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الاختبار التعليمي المتقدم للحفظ</title>
-    
     <link rel="stylesheet" href="style.css">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-    <!-- ======================= شاشة البداية وتسجيل الدخول ======================= -->
+    <!-- شاشة البداية وتسجيل الدخول -->
     <div id="start-screen" class="container">
         <h1>الاختبار التعليمي المتقدم للحفظ</h1>
         <p>أدخل اسمك لبدء رحلتك في تثبيت الحفظ أو لمتابعة تقدمك.</p>
-        
         <input type="text" id="userName" placeholder="أدخل اسمك هنا">
-        <!-- إضافة type="button" لمنع إعادة تحميل الصفحة -->
         <button id="startButton" type="button">تسجيل الدخول</button>
-        
         <div id="loader" class="loader hidden"></div>
+    </div>
+
+    <!-- الواجهة الرئيسية الجديدة (نظام التبويبات ) -->
+    <div id="main-interface" class="container hidden">
+        <div id="player-info-header"></div>
         <hr>
-        
-        <div id="post-login-controls" class="hidden">
-            <div id="player-info"></div>
-            <hr>
-            
-            <div id="challenges-container" class="hidden">
-                <h3>تحديات متاحة</h3>
-                <div id="challenges-list"></div>
-                <hr>
+
+        <!-- شريط التبويبات للتنقل -->
+        <div class="tabs-navigation">
+            <button class="tab-button active" data-tab="test-tab">الاختبار</button>
+            <button class="tab-button" data-tab="pages-tab">شراء صفحات</button>
+            <button class="tab-button" data-tab="ranges-tab">شراء نطاقات</button>
+            <button class="tab-button" data-tab="juz-tab">شراء أجزاء</button>
+            <button class="tab-button" data-tab="challenges-tab">التحديات</button>
+            <button class="tab-button" data-tab="qari-tab">القراء</button>
+            <button class="tab-button" data-tab="themes-tab">الثيمات</button>
+            <button class="tab-button" data-tab="exchange-tab">استبدال XP</button>
+            <button class="tab-button" data-tab="leaderboard-tab">لوحة الصدارة</button>
+        </div>
+
+        <!-- حاويات محتوى التبويبات -->
+        <div class="tab-content-container">
+            <!-- 1. تبويب الاختبار الرئيسي -->
+            <div id="test-tab" class="tab-content active">
+                <h3>ابدأ اختبارك</h3>
+                <p>اختر صفحة من الصفحات المتاحة لك لبدء اختبارك.</p>
+                <div class="test-controls">
+                    <select id="pageSelect"></select>
+                    <select id="qariSelect"></select>
+                    <select id="questionsCount"></select>
+                    <button id="startTestButton" class="start-test-button">ابدأ الاختبار</button>
+                </div>
             </div>
 
-            <p>اختر القارئ، وحدد الصفحة لبدء الاختبار.</p>
-            <select id="pageSelect">
-                <option value="">-- اختر صفحة --</option>
-            </select>
-            
-            <select id="qariSelect">
-                <option value="ar.alafasy" selected>مشاري العفاسي</option>
-                <option value="ar.abdulbasitmurattal">عبد الباسط (مرتل )</option>
-                <option value="ar.minshawi">محمد صديق المنشاوي</option>
-                <option value="ar.husary" data-locked="true">محمود خليل الحصري (مقفل)</option>
-            </select>
-            
-            <select id="questionsCount">
-                <option value="5">5 أسئلة</option>
-            </select>
+            <!-- 2. تبويبات المتجر -->
+            <div id="pages-tab" class="tab-content store-grid hidden">
+                <h3>شراء صفحات فردية</h3>
+                <p>افتح أي صفحة من القرآن الكريم بشكل دائم.</p>
+                <div id="pages-store-items" class="items-container"></div>
+            </div>
+            <div id="ranges-tab" class="tab-content store-grid hidden">
+                <h3>شراء حزم ونطاقات</h3>
+                <p>وفر الألماس عبر شراء مجموعات من الصفحات دفعة واحدة.</p>
+                <div id="ranges-store-items" class="items-container"></div>
+            </div>
+            <div id="juz-tab" class="tab-content store-grid hidden">
+                <h3>شراء أجزاء كاملة</h3>
+                <p>افتح أجزاء كاملة من القرآن لتحديات أكبر.</p>
+                <div id="juz-store-items" class="items-container"></div>
+            </div>
+            <div id="challenges-tab" class="tab-content store-grid hidden">
+                <h3>شراء تحديات خاصة</h3>
+                <p>ادفع رسوم الدخول لتحديات خاصة بمكافآت قيمة.</p>
+                <div id="challenges-store-items" class="items-container"></div>
+            </div>
+            <div id="qari-tab" class="tab-content store-grid hidden">
+                <h3>متجر القراء</h3>
+                <p>استخدم الألماس لفتح تلاوات جديدة من قراء مميزين.</p>
+                <div id="qari-store-items" class="items-container"></div>
+            </div>
+            <div id="themes-tab" class="tab-content store-grid hidden">
+                <h3>متجر الثيمات</h3>
+                <p>قم بتخصيص شكل التطبيق عبر شراء ثيمات جديدة.</p>
+                <div id="themes-store-items" class="items-container"></div>
+            </div>
+            <div id="exchange-tab" class="tab-content store-grid hidden">
+                <h3>استبدال نقاط الخبرة</h3>
+                <p>حوّل نقاط الخبرة التي كسبتها بجد إلى ألماس ثمين.</p>
+                <div id="exchange-store-items" class="items-container"></div>
+            </div>
 
-            <div class="main-buttons">
-                <button id="startTestButton" class="start-test-button">ابدأ الاختبار</button>
-                <button id="storeButton" class="secondary-button">المتجر</button>
-                <button id="leaderboardButton" class="secondary-button">لوحة الصدارة</button>
+            <!-- 3. تبويب لوحة الصدارة -->
+            <div id="leaderboard-tab" class="tab-content hidden">
+                <h3>لوحة الصدارة</h3>
+                <p>شاهد ترتيبك بين أفضل اللاعبين بناءً على نقاط الخبرة.</p>
+                <div id="leaderboard-list"></div>
             </div>
         </div>
     </div>
 
-    <!-- ======================= شاشة الاختبار ======================= -->
+    <!-- الشاشات التي تظهر فوق الواجهة الرئيسية -->
     <div id="quiz-screen" class="container hidden">
         <div id="progress-counter"></div>
         <div id="progress-container"><div id="progress-bar"></div></div>
@@ -67,51 +106,21 @@
         <div id="question-area"></div>
         <div id="feedback-area" class="hidden"></div>
     </div>
-
-    <!-- ======================= شاشة مراجعة الأخطاء ======================= -->
     <div id="error-review-screen" class="container hidden">
         <h2>مراجعة الأخطاء</h2>
         <p>هذه هي الأسئلة التي أخطأت فيها. راجعها جيداً لتثبيت الحفظ.</p>
         <div id="error-list"></div>
         <button id="show-final-result-button">عرض النتيجة النهائية</button>
     </div>
-
-    <!-- ======================= شاشة النتيجة النهائية ======================= -->
     <div id="result-screen" class="container hidden">
         <h2>النتيجة النهائية</h2>
         <p>أحسنت يا <span id="resultName"></span>!</p>
         <p>نتيجتك هي: <span id="finalScore"></span></p>
         <p>لقد كسبت: <span id="xpGained"></span> نقطة خبرة.</p>
-        <p id="level-up-message" class="hidden" style="color: #004d40; font-weight: bold;"></p>
-        <p id="save-status" style="font-size: 0.9em; color: #555;">جاري حفظ تقدمك...</p>
+        <p id="level-up-message" class="hidden"></p>
+        <p id="save-status"></p>
         <button id="reloadButton">العودة إلى القائمة الرئيسية</button>
     </div>
-
-    <!-- ======================= شاشة المتجر ======================= -->
-    <div id="store-screen" class="container hidden">
-        <div class="store-header">
-            <h2>المتجر</h2>
-            <div id="player-diamonds-display" class="diamonds-counter"></div>
-        </div>
-        <p>استخدم الألماس أو نقاط الخبرة لشراء عناصر مميزة!</p>
-        <hr>
-        <div id="store-items-container"></div>
-        <button id="closeStoreButton">العودة إلى القائمة</button>
-    </div>
-
-    <!-- ======================= شاشة لوحة الصدارة ======================= -->
-    <div id="leaderboard-screen" class="container hidden">
-        <div class="store-header">
-            <h2>لوحة الصدارة</h2>
-            <div id="leaderboard-info">أفضل 10 لاعبين</div>
-        </div>
-        <p>شاهد ترتيبك بين أفضل اللاعبين بناءً على نقاط الخبرة.</p>
-        <hr>
-        <div id="leaderboard-list"></div>
-        <button id="closeLeaderboardButton">العودة إلى القائمة</button>
-    </div>
-
-    <!-- ======================= إشعار الإنجازات ======================= -->
     <div id="achievement-toast" class="hidden">
         <div class="toast-icon">🏆</div>
         <div class="toast-content">
@@ -121,9 +130,8 @@
         </div>
     </div>
 
-    <!-- استيراد مكتبة Supabase -->
+    <!-- استيراد السكربتات -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- استيراد ملفات المشروع -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
