@@ -1,85 +1,120 @@
 // =============================================================
-// ==      وحدة منطق المتجر (مع Supabase) (النسخة النهائية)     ==
+// ==      وحدة منطق المتجر (Store) - نسخة نهائية كاملة         ==
 // =============================================================
 
 import * as ui from './ui.js';
 import * as player from './player.js';
 import * as progression from './progression.js';
 import * as achievements from './achievements.js';
+import { updateAvailablePages } from './main.js';
+
+let storeItemsCache = [];
 
 /**
- * يعرض شاشة المتجر ويملأها بالبيانات الحالية.
+ * تعرض عناصر المتجر في التبويبات المخصصة لها.
  */
-export function openStore() {
-    const storeItems = progression.getStoreItems();
-    ui.displayStore(storeItems, player.playerData, purchaseItem);
-    ui.showScreen(ui.storeScreen);
+export function renderStoreItems(items, playerData) {
+    storeItemsCache = items;
+    document.querySelectorAll('.items-container').forEach(container => container.innerHTML = '');
+
+    items.forEach(item => {
+        const container = document.getElementById(`${item.type}-store-items`);
+        if (!container) return;
+
+        const isOwned = checkIfOwned(item, playerData.inventory);
+        let priceText = `${item.price} 💎`;
+        let canAfford = playerData.diamonds >= item.price;
+        let buttonText = 'شراء';
+
+        if (item.type === 'exchange') {
+            priceText = `التكلفة: ${item.price} XP`;
+            canAfford = playerData.xp >= item.price;
+            buttonText = 'استبدال';
+        }
+
+        if (isOwned) buttonText = 'تم الشراء';
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `store-item ${isOwned ? 'owned-item' : ''}`;
+        itemDiv.innerHTML = `
+            <h4>${item.name}</h4>
+            <p>${item.description}</p>
+            <p class="item-price">${priceText}</p>
+            <button class="buy-button" data-item-id="${item.id}" ${isOwned || !canAfford ? 'disabled' : ''}>
+                ${buttonText}
+            </button>
+        `;
+
+        if (!isOwned) {
+            itemDiv.querySelector('.buy-button').addEventListener('click', (e) => {
+                purchaseItem(e.target.dataset.itemId);
+            });
+        }
+        container.appendChild(itemDiv);
+    });
+}
+
+/**
+ * يتحقق مما إذا كان اللاعب يمتلك عنصرًا (خاصة للحزم).
+ */
+function checkIfOwned(item, inventory) {
+    if (item.type === 'pages' || item.type === 'qari' || item.type === 'themes') {
+        return inventory.includes(item.id);
+    }
+    if (item.type === 'ranges' || item.type === 'juz') {
+        const [start, end] = item.value.split('-').map(Number);
+        for (let i = start; i <= end; i++) {
+            if (!inventory.includes(`page_${i}`)) return false;
+        }
+        return true; // يمتلك كل الصفحات في الحزمة
+    }
+    return false; // عناصر الاستبدال والتحديات لا تُمتلك
 }
 
 /**
  * يعالج منطق شراء عنصر معين.
- * @param {string} itemId - معرف العنصر المطلوب شراؤه.
  */
 async function purchaseItem(itemId) {
-    const storeItems = progression.getStoreItems();
-    const item = storeItems.find(i => i.id === itemId);
+    const item = storeItemsCache.find(i => i.id === itemId);
+    if (!item) return;
 
-    if (!item) {
-        alert("عفواً، هذا العنصر غير موجود.");
-        return;
-    }
-
-    // --- التحقق من الشروط بناءً على نوع العنصر ---
-    if (item.type === 'xp_exchange') {
-        // حالة خاصة: استبدال نقاط الخبرة
+    if (item.type === 'exchange') {
         if (player.playerData.xp < item.price) {
-            alert(`عفواً، لا تملك ما يكفي من نقاط الخبرة (${item.price} نقطة) لإتمام هذه العملية.`);
+            alert("نقاط خبرتك غير كافية.");
             return;
         }
+        player.playerData.xp -= item.price;
+        player.playerData.diamonds += parseInt(item.value, 10);
     } else {
-        // الحالات الأخرى: الشراء بالألماس
         if (player.playerData.diamonds < item.price) {
-            alert("عفواً، لا تملك ما يكفي من الألماس لشراء هذا العنصر.");
+            alert("ألماسك غير كافٍ.");
             return;
         }
-        if (player.playerData.inventory.includes(itemId)) {
-            alert("أنت تمتلك هذا العنصر بالفعل!");
-            return;
-        }
-    }
-
-    // --- عملية الشراء ---
-    ui.toggleLoader(true);
-
-    // --- تنفيذ العملية بناءً على نوع العنصر ---
-    if (item.type === 'xp_exchange') {
-        player.playerData.xp -= item.price; // خصم نقاط الخبرة
-        player.playerData.diamonds += parseInt(item.value, 10); // إضافة الألماس
-        alert(`تهانينا! لقد استبدلت ${item.price} نقطة خبرة مقابل ${item.value} ألماسة.`);
-    } else {
-        // خصم السعر من ألماس اللاعب
         player.playerData.diamonds -= item.price;
-        // إضافة العنصر إلى ممتلكات اللاعب
-        player.playerData.inventory.push(itemId);
-        alert(`تهانينا! لقد اشتريت "${item.name}".`);
+
+        if (item.type === 'ranges' || item.type === 'juz') {
+            const [start, end] = item.value.split('-').map(Number);
+            for (let i = start; i <= end; i++) {
+                const pageId = `page_${i}`;
+                if (!player.playerData.inventory.includes(pageId)) {
+                    player.playerData.inventory.push(pageId);
+                }
+            }
+        } else {
+            player.playerData.inventory.push(item.id);
+        }
     }
 
-    // --- عمليات ما بعد الشراء ---
-
-    // 1. التحقق من الإنجازات المتعلقة بالشراء
-    achievements.checkAchievements('item_purchased', {
-        itemId: item.id,
-        itemType: item.type,
-        price: item.price
-    });
-
-    // 2. حفظ بيانات اللاعب المحدثة في قاعدة البيانات
+    alert(`تهانينا! تمت عملية "${item.name}" بنجاح.`);
+    
+    achievements.checkAchievements('item_purchased', { itemId: item.id, itemType: item.type });
     await player.savePlayer();
 
-    ui.toggleLoader(false);
-
-    // 3. إعادة بناء واجهة المتجر وواجهة اللاعب لتعكس التغييرات
-    openStore();
     const levelInfo = progression.getLevelInfo(player.playerData.xp);
-    ui.updatePlayerDisplay(player.playerData, levelInfo);
+    ui.updatePlayerHeader(player.playerData, levelInfo);
+    renderStoreItems(storeItemsCache, player.playerData);
+    updateAvailablePages();
+    if (item.type === 'qari') {
+        ui.populateQariSelect(ui.qariSelect, player.playerData.inventory);
+    }
 }
