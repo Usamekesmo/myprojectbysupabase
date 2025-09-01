@@ -8,23 +8,53 @@ const QURAN_API_BASE_URL = "https://api.alquran.cloud/v1";
 
 // --- 1. دوال المصادقة (Authentication ) ---
 
-// ▼▼▼ تأكد من وجود كلمة "export" هنا ▼▼▼
-export async function signUpUser(email, password, username) {
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username: username } }
-    });
+// في ملف js/api.js
 
-    if (signUpError) {
-        if (signUpError.message.includes("User already registered")) {
-            console.log("المستخدم موجود بالفعل، جاري محاولة تسجيل الدخول...");
-            return await supabase.auth.signInWithPassword({ email, password });
-        }
-        return { data: null, error: signUpError };
+/**
+ * يقوم بإنشاء حساب جديد للمستخدم، أو تسجيل دخوله إذا كان موجودًا بالفعل.
+ * هذا هو المنطق الأكثر استقرارًا وموثوقية.
+ * @param {string} email - البريد الإلكتروني للمستخدم.
+ * @param {string} password - كلمة المرور.
+ * @param {string} username - اسم المستخدم.
+ * @returns {Promise<{data: any, error: any}>}
+ */
+export async function signUpUser(email, password, username) {
+    // الخطوة 1: محاولة تسجيل الدخول أولاً. هذا هو النهج الأكثر أمانًا.
+    let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    // إذا نجح تسجيل الدخول، فهذا يعني أن المستخدم موجود. أرجع البيانات.
+    if (!error && data.user) {
+        console.log("تم تسجيل دخول المستخدم الموجود بنجاح.");
+        return { data, error: null };
     }
-    return { data: signUpData, error: null };
+
+    // إذا فشل تسجيل الدخول، تحقق من سبب الفشل.
+    if (error && error.message.includes("Invalid login credentials")) {
+        // السبب هو أن المستخدم غير موجود. الآن، قم بإنشاء حساب جديد.
+        console.log("المستخدم غير موجود، جاري إنشاء حساب جديد...");
+        
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { username: username } }
+        });
+
+        // إذا حدث خطأ أثناء إنشاء الحساب (مثل خطأ 422 بسبب تفعيل تأكيد البريد)
+        if (signUpError) {
+            console.error("فشل إنشاء الحساب:", signUpError.message);
+            // أرجع الخطأ الجديد لكي يراه المستخدم
+            return { data: null, error: signUpError };
+        }
+
+        // إذا نجح إنشاء الحساب، أرجع البيانات الجديدة
+        console.log("تم إنشاء الحساب بنجاح.");
+        return { data: signUpData, error: null };
+    }
+
+    // إذا كان هناك أي خطأ آخر غير "Invalid login credentials"، أرجعه
+    return { data, error };
 }
+
 
 
 // --- 2. دوال جلب البيانات (Read Operations) ---
