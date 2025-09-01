@@ -1,98 +1,162 @@
 // =============================================================
-// ==      وحدة واجهة المستخدم (النسخة المعدلة لـ Supabase)    ==
+// ==      وحدة واجهة المستخدم (UI) - نسخة نهائية كاملة        ==
 // =============================================================
 
-// --- 1. استيراد العناصر من DOM (لا تغيير هنا) ---
+// --- 1. استيراد العناصر من DOM ---
+// تم تحديث القائمة لتعكس الهيكل الجديد القائم على التبويبات
 export const startScreen = document.getElementById('start-screen');
+export const mainInterface = document.getElementById('main-interface');
 export const quizScreen = document.getElementById('quiz-screen');
 export const errorReviewScreen = document.getElementById('error-review-screen');
 export const resultScreen = document.getElementById('result-screen');
-export const storeScreen = document.getElementById('store-screen');
-export const leaderboardScreen = document.getElementById('leaderboard-screen');
+
 export const userNameInput = document.getElementById('userName');
+export const startButton = document.getElementById('startButton');
+export const loader = document.getElementById('loader');
+
+export const playerInfoHeader = document.getElementById('player-info-header');
 export const pageSelect = document.getElementById('pageSelect');
 export const qariSelect = document.getElementById('qariSelect');
 export const questionsCountSelect = document.getElementById('questionsCount');
-export const startButton = document.getElementById('startButton');
 export const startTestButton = document.getElementById('startTestButton');
-export const storeButton = document.getElementById('storeButton');
-export const leaderboardButton = document.getElementById('leaderboardButton');
-export const reloadButton = document.getElementById('reloadButton');
-export const closeStoreButton = document.getElementById('closeStoreButton');
-export const closeLeaderboardButton = document.getElementById('closeLeaderboardButton');
-export const showFinalResultButton = document.getElementById('show-final-result-button');
-export const playerInfoDiv = document.getElementById('player-info');
-export const loader = document.getElementById('loader');
-export const postLoginControls = document.getElementById('post-login-controls');
+
+export const leaderboardList = document.getElementById('leaderboard-list');
+
 export const progressCounter = document.getElementById('progress-counter');
 export const progressBar = document.getElementById('progress-bar');
 export const questionArea = document.getElementById('question-area');
 export const feedbackArea = document.getElementById('feedback-area');
+
 export const errorListDiv = document.getElementById('error-list');
+export const showFinalResultButton = document.getElementById('show-final-result-button');
+
 export const resultNameSpan = document.getElementById('resultName');
 export const finalScoreSpan = document.getElementById('finalScore');
 export const xpGainedSpan = document.getElementById('xpGained');
 export const levelUpMessage = document.getElementById('level-up-message');
 export const saveStatus = document.getElementById('save-status');
-export const playerDiamondsDisplay = document.getElementById('player-diamonds-display');
-export const storeItemsContainer = document.getElementById('store-items-container');
-export const challengesContainer = document.getElementById('challenges-container');
-export const challengesList = document.getElementById('challenges-list');
-export const leaderboardList = document.getElementById('leaderboard-list');
+export const reloadButton = document.getElementById('reloadButton');
+
 export const achievementToast = document.getElementById('achievement-toast');
 export const achievementToastName = document.getElementById('achievement-toast-name');
 export const achievementToastReward = document.getElementById('achievement-toast-reward');
 
-// --- دوال تحديث الواجهة ---
 
+// --- 2. دوال التحكم في الواجهة ---
+
+/**
+ * تعرض شاشة محددة (مثل شاشة البداية أو الاختبار) وتخفي البقية.
+ * @param {HTMLElement} screenToShow - العنصر الذي سيتم إظهاره.
+ */
 export function showScreen(screenToShow) {
-    [startScreen, quizScreen, errorReviewScreen, resultScreen, storeScreen, leaderboardScreen].forEach(s => s.classList.add('hidden'));
-    screenToShow.classList.remove('hidden');
-}
-
-export function toggleLoader(show) {
-    loader.classList.toggle('hidden', !show);
-}
-
-export function initializeLockedOptions() {
-    qariSelect.querySelectorAll('option[data-locked="true"]').forEach(option => {
-        option.disabled = true;
-        option.style.color = '#999';
+    const allScreens = [startScreen, mainInterface, quizScreen, errorReviewScreen, resultScreen];
+    allScreens.forEach(s => {
+        if (s) s.classList.add('hidden'); // التحقق من أن العنصر ليس null قبل التعامل معه
     });
+    if (screenToShow) screenToShow.classList.remove('hidden');
 }
 
-export function updatePlayerDisplay(playerData, levelInfo) {
-    // تحديث: استخدام username
-    if (playerData.isNew) {
-        playerInfoDiv.innerHTML = `<p>مرحباً بك يا <strong>${playerData.username}</strong>!</p>`;
-    } else {
-        playerInfoDiv.innerHTML = `
-            <p>مرحباً بعودتك يا <strong>${playerData.username}</strong>!</p>
-            <p>المستوى: ${levelInfo.level} (${levelInfo.title}) | الخبرة: ${playerData.xp} | الألماس: ${playerData.diamonds} 💎</p>
-        `;
-    }
-    playerInfoDiv.classList.remove('hidden');
+/**
+ * تعرض تبويبًا محددًا داخل الواجهة الرئيسية وتخفي البقية.
+ * @param {string} tabIdToShow - معرف التبويب الذي سيتم إظهاره.
+ */
+export function showTab(tabIdToShow) {
+    // إخفاء جميع محتويات التبويبات
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
+    // إزالة التحديد من جميع أزرار التبويبات
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+
+    // إظهار المحتوى والزر المطلوبين
+    const activeTabContent = document.getElementById(tabIdToShow);
+    const activeTabButton = document.querySelector(`.tab-button[data-tab="${tabIdToShow}"]`);
+
+    if (activeTabContent) activeTabContent.classList.remove('hidden');
+    if (activeTabButton) activeTabButton.classList.add('active');
 }
 
-export function populatePageSelect(allowedPages, purchasedPages) {
-    pageSelect.innerHTML = '<option value="">-- اختر صفحة --</option>';
-    const allAvailablePages = [...new Set([...allowedPages, ...purchasedPages])].sort((a, b) => a - b);
-    if (allAvailablePages.length === 0) {
-        pageSelect.innerHTML = '<option value="">لا توجد صفحات متاحة حاليًا</option>';
+/**
+ * تظهر أو تخفي دائرة التحميل.
+ * @param {boolean} show - `true` للإظهار، `false` للإخفاء.
+ */
+export function toggleLoader(show) {
+    if (loader) loader.classList.toggle('hidden', !show);
+}
+
+
+// --- 3. دوال تحديث بيانات اللاعب والاختبار ---
+
+/**
+ * تحديث معلومات اللاعب في رأس الصفحة.
+ */
+export function updatePlayerHeader(playerData, levelInfo) {
+    if (!playerInfoHeader) return;
+    playerInfoHeader.innerHTML = `
+        <p>مرحباً بك يا <strong>${playerData.username}</strong>!</p>
+        <p>المستوى: ${levelInfo.level} (${levelInfo.title}) | الخبرة: ${playerData.xp} | الألماس: ${playerData.diamonds} 💎</p>
+    `;
+}
+
+/**
+ * تملأ قائمة اختيار (select) بالخيارات.
+ */
+export function populateSelect(selectElement, optionsArray, prefix = '') {
+    if (!selectElement) return;
+    selectElement.innerHTML = '';
+    if (optionsArray.length === 0) {
+        selectElement.innerHTML = `<option value="">لا توجد ${prefix} متاحة</option>`;
         return;
     }
-    allAvailablePages.forEach(page => {
+    optionsArray.forEach(optionValue => {
         const option = document.createElement('option');
-        option.value = page;
-        option.textContent = `الصفحة ${page}`;
-        if (purchasedPages.includes(page) && !allowedPages.includes(page)) {
-            option.textContent += " (تم شراؤها)";
-        }
-        pageSelect.appendChild(option);
+        option.value = optionValue;
+        option.textContent = `${prefix} ${optionValue}`;
+        selectElement.appendChild(option);
     });
 }
 
+/**
+ * تملأ قائمة اختيار القراء بالخيارات الافتراضية والمشتراة.
+ */
+export function populateQariSelect(selectElement, inventory) {
+    if (!selectElement) return;
+    const defaultQaris = [
+        { value: 'ar.alafasy', text: 'مشاري العفاسي' },
+        { value: 'ar.abdulbasitmurattal', text: 'عبد الباسط (مرتل)' },
+        { value: 'ar.minshawi', text: 'محمد صديق المنشاوي' }
+    ];
+    const purchasableQaris = [
+        { id: 'qari_husary', value: 'ar.husary', text: 'محمود خليل الحصري' },
+        { id: 'qari_sudais', value: 'ar.sudais', text: 'عبد الرحمن السديس' },
+        { id: 'qari_ajmy', value: 'ar.ajmy', text: 'أحمد العجمي' }
+    ];
+
+    selectElement.innerHTML = '';
+    defaultQaris.forEach(q => {
+        const option = document.createElement('option');
+        option.value = q.value;
+        option.textContent = q.text;
+        selectElement.appendChild(option);
+    });
+
+    purchasableQaris.forEach(q => {
+        if (inventory.includes(q.id)) {
+            const option = document.createElement('option');
+            option.value = q.value;
+            option.textContent = `${q.text} (تم شراؤه)`;
+            selectElement.appendChild(option);
+        }
+    });
+}
+
+/**
+ * تحديث خيارات عدد الأسئلة المتاحة بناءً على مستوى اللاعب.
+ */
 export function updateQuestionsCountOptions(maxQuestions) {
+    if (!questionsCountSelect) return;
     questionsCountSelect.innerHTML = '';
     for (let i = 5; i <= maxQuestions; i += 5) {
         const option = document.createElement('option');
@@ -100,115 +164,27 @@ export function updateQuestionsCountOptions(maxQuestions) {
         option.textContent = `${i} ${i <= 10 ? 'أسئلة' : 'سؤالاً'}`;
         questionsCountSelect.appendChild(option);
     }
-    if (questionsCountSelect.options.length > 0) {
-        questionsCountSelect.value = questionsCountSelect.options[0].value;
+}
+
+/**
+ * تحديث شريط تقدم الاختبار.
+ */
+export function updateProgress(current, total) {
+    if (progressCounter) progressCounter.textContent = `السؤال ${current} من ${total}`;
+    if (progressBar) {
+        const percentage = (current / total) * 100;
+        progressBar.style.width = `${percentage}%`;
     }
 }
 
-export function updateProgress(current, total, isEnd = false) {
-    progressCounter.textContent = isEnd ? `اكتمل الاختبار!` : `السؤال ${current} من ${total}`;
-    const percentage = (current / total) * 100;
-    progressBar.style.width = `${percentage}%`;
-}
 
-export function disableQuestionInteraction() {
-    questionArea.querySelectorAll('button, .choice-box, .number-box, .option-div').forEach(el => {
-        el.style.pointerEvents = 'none';
-    });
-}
+// --- 4. دوال عرض النتائج والملاحظات ---
 
-export function markAnswer(element, isCorrect) {
-    if (element) {
-        element.classList.add(isCorrect ? 'correct-answer' : 'wrong-answer');
-    }
-}
-
-export function showFeedback(isCorrect, correctAnswerText) {
-    feedbackArea.classList.remove('hidden', 'correct-answer', 'wrong-answer');
-    if (isCorrect) {
-        feedbackArea.textContent = 'إجابة صحيحة! أحسنت.';
-        feedbackArea.classList.add('correct-answer');
-    } else {
-        feedbackArea.innerHTML = `إجابة خاطئة. الإجابة الصحيحة هي: <strong>${correctAnswerText}</strong>`;
-        feedbackArea.classList.add('wrong-answer');
-    }
-}
-
-export function displayErrorReview(errorLog) {
-    errorListDiv.innerHTML = errorLog.map(error => `
-        <div class="error-review-item">
-            <h4>السؤال الذي أخطأت فيه:</h4>
-            ${error.questionHTML}
-            <hr>
-            <p><strong>الإجابة الصحيحة كانت:</strong> <span class="correct-text">${error.correctAnswer}</span></p>
-        </div>
-    `).join('');
-    showScreen(errorReviewScreen);
-}
-
-export function displayFinalResult(quizState, levelUpInfo) {
-    resultNameSpan.textContent = quizState.userName;
-    finalScoreSpan.textContent = `${quizState.score} / ${quizState.totalQuestions}`;
-    xpGainedSpan.textContent = quizState.xpEarned;
-    if (levelUpInfo) {
-        levelUpMessage.innerHTML = `🎉 تهانينا! لقد ارتقيت إلى المستوى ${levelUpInfo.level} (${levelUpInfo.title}) وكسبت ${levelUpInfo.reward} ألماسة!`;
-        levelUpMessage.classList.remove('hidden');
-    } else {
-        levelUpMessage.classList.add('hidden');
-    }
-    updateSaveMessage(false);
-    showScreen(resultScreen);
-}
-
-export function updateSaveMessage(isSaved) {
-    if (isSaved) {
-        saveStatus.textContent = 'تم حفظ تقدمك بنجاح!';
-        saveStatus.style.color = '#004d40';
-    } else {
-        saveStatus.textContent = 'جاري حفظ تقدمك...';
-        saveStatus.style.color = '#555';
-    }
-}
-
-export function displayStore(storeItems, playerData, purchaseCallback) {
-    playerDiamondsDisplay.innerHTML = `${playerData.diamonds} 💎 | ${playerData.xp} XP`;
-    storeItemsContainer.innerHTML = '';
-    storeItems.forEach(item => {
-        const isOwned = playerData.inventory.includes(item.id);
-        const itemDiv = document.createElement('div');
-        itemDiv.className = `store-item ${isOwned ? 'owned-item' : ''}`;
-        let priceDisplay = '';
-        let buttonText = 'شراء';
-        let isDisabled = isOwned;
-        // تحديث: استخدام 'xp_exchange'
-        if (item.type === 'xp_exchange') {
-            priceDisplay = `التكلفة: ${item.price} XP`;
-            buttonText = 'استبدال';
-            if (playerData.xp < item.price) isDisabled = true;
-        } else {
-            priceDisplay = `السعر: ${item.price} 💎`;
-            if (playerData.diamonds < item.price) isDisabled = true;
-        }
-        if (isOwned) buttonText = 'تم الشراء';
-        
-        itemDiv.innerHTML = `
-            <h4>${item.name}</h4>
-            <p>${item.description}</p>
-            <p class="item-price">${priceDisplay}</p>
-            <button class="buy-button" data-item-id="${item.id}" ${isDisabled ? 'disabled' : ''}>
-                ${buttonText}
-            </button>
-        `;
-        if (!isOwned) {
-            itemDiv.querySelector('.buy-button').addEventListener('click', (e) => {
-                purchaseCallback(e.target.dataset.itemId);
-            });
-        }
-        storeItemsContainer.appendChild(itemDiv);
-    });
-}
-
+/**
+ * عرض بيانات لوحة الصدارة.
+ */
 export function displayLeaderboard(leaderboardData) {
+    if (!leaderboardList) return;
     leaderboardList.innerHTML = '';
     if (!leaderboardData || leaderboardData.length === 0) {
         leaderboardList.innerHTML = '<p>لا توجد بيانات لعرضها حاليًا.</p>';
@@ -226,34 +202,67 @@ export function displayLeaderboard(leaderboardData) {
     });
 }
 
+/**
+ * عرض النتيجة النهائية للاختبار.
+ */
+export function displayFinalResult(quizState, levelUpInfo) {
+    if (resultNameSpan) resultNameSpan.textContent = quizState.userName;
+    if (finalScoreSpan) finalScoreSpan.textContent = `${quizState.score} / ${quizState.totalQuestions}`;
+    if (xpGainedSpan) xpGainedSpan.textContent = quizState.xpEarned;
+    
+    if (levelUpMessage) {
+        if (levelUpInfo) {
+            levelUpMessage.innerHTML = `🎉 تهانينا! لقد ارتقيت إلى المستوى ${levelUpInfo.level} (${levelUpInfo.title}) وكسبت ${levelUpInfo.reward} ألماسة!`;
+            levelUpMessage.classList.remove('hidden');
+        } else {
+            levelUpMessage.classList.add('hidden');
+        }
+    }
+    
+    updateSaveMessage(true); // تم الحفظ قبل عرض هذه الشاشة
+    showScreen(resultScreen);
+}
+
+/**
+ * عرض شاشة مراجعة الأخطاء.
+ */
+export function displayErrorReview(errorLog) {
+    if (!errorListDiv) return;
+    errorListDiv.innerHTML = errorLog.map(error => `
+        <div class="error-review-item">
+            <h4>السؤال الذي أخطأت فيه:</h4>
+            ${error.questionHTML}
+            <hr>
+            <p><strong>الإجابة الصحيحة كانت:</strong> <span class="correct-text">${error.correctAnswer}</span></p>
+        </div>
+    `).join('');
+    showScreen(errorReviewScreen);
+}
+
+/**
+ * تحديث رسالة حفظ التقدم.
+ */
+export function updateSaveMessage(isSaved) {
+    if (!saveStatus) return;
+    if (isSaved) {
+        saveStatus.textContent = 'تم حفظ تقدمك بنجاح!';
+        saveStatus.style.color = '#004d40';
+    } else {
+        saveStatus.textContent = 'جاري حفظ تقدمك...';
+        saveStatus.style.color = '#555';
+    }
+}
+
+/**
+ * إظهار إشعار عند تحقيق إنجاز جديد.
+ */
 export function showAchievementToast(achievement) {
-    achievementToastName.textContent = achievement.name;
-    // تحديث: استخدام xp_reward و diamonds_reward
-    achievementToastReward.textContent = `+${achievement.xp_reward} XP, +${achievement.diamonds_reward} 💎`;
-    achievementToast.classList.remove('hidden');
+    if (!achievementToast) return;
+    if (achievementToastName) achievementToastName.textContent = achievement.name;
+    if (achievementToastReward) achievementToastReward.textContent = `+${achievement.xp_reward} XP, +${achievement.diamonds_reward} 💎`;
+    
     achievementToast.classList.add('show');
     setTimeout(() => {
         achievementToast.classList.remove('show');
     }, 4000);
-}
-
-// لا تغييرات في بقية الدوال
-export function displayChallenges(challenges, startChallengeCallback) {
-    if (!challenges || challenges.length === 0) {
-        challengesContainer.classList.add('hidden');
-        return;
-    }
-    challengesList.innerHTML = '';
-    challenges.forEach(challenge => {
-        const challengeDiv = document.createElement('div');
-        challengeDiv.className = 'challenge-item';
-        challengeDiv.innerHTML = `
-            <h4>${challenge.challengeName}</h4>
-            <p>متاح حتى: ${new Date(challenge.endDate).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' })}</p>
-            <button data-challenge-id="${challenge.challengeId}">ابدأ التحدي</button>
-        `;
-        challengeDiv.querySelector('button').addEventListener('click', () => startChallengeCallback(challenge.challengeId));
-        challengesList.appendChild(challengeDiv);
-    });
-    challengesContainer.classList.remove('hidden');
 }
