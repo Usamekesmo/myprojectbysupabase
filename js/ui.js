@@ -177,6 +177,37 @@ export function updateProgress(current, total) {
     }
 }
 
+// في ملف js/ui.js، أضف هذا المقطع
+
+// ... (بعد دالة updateProgress)
+
+export function disableQuestionInteraction() {
+    if (questionArea) {
+        questionArea.querySelectorAll('button, .choice-box, .number-box, .option-div').forEach(el => {
+            el.style.pointerEvents = 'none';
+        });
+    }
+}
+
+export function markAnswer(element, isCorrect) {
+    if (element) {
+        element.classList.add(isCorrect ? 'correct-answer' : 'wrong-answer');
+    }
+}
+
+export function showFeedback(isCorrect, correctAnswerText) {
+    if (!feedbackArea) return;
+    feedbackArea.classList.remove('hidden', 'correct-answer', 'wrong-answer');
+    if (isCorrect) {
+        feedbackArea.textContent = 'إجابة صحيحة! أحسنت.';
+        feedbackArea.classList.add('correct-answer');
+    } else {
+        feedbackArea.innerHTML = `إجابة خاطئة. الإجابة الصحيحة هي: <strong>${correctAnswerText}</strong>`;
+        feedbackArea.classList.add('wrong-answer');
+    }
+}
+
+// ... (قبل دالة displayLeaderboard)
 
 // --- 4. دوال عرض النتائج والملاحظات ---
 
