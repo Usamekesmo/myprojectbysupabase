@@ -1,175 +1,177 @@
 // =============================================================
-// ==      الملف الرئيسي (النسخة المستقرة بعد حل مشاكل المصادقة)      ==
+// ==      الملف الرئيسي (main.js) - نسخة نهائية كاملة         ==
 // =============================================================
 
 import * as ui from './ui.js';
-import { fetchPageData, fetchLeaderboard, signUpUser, signInUser } from './api.js';
+import * as api from './api.js';
 import * as quiz from './quiz.js';
 import * as player from './player.js';
 import * as progression from './progression.js';
 import * as store from './store.js';
 import * as achievements from './achievements.js';
 
-// --- 1. دالة التهيئة الرئيسية ---
+// تعريف الصفحات المجانية التي يحصل عليها كل مستخدم جديد
+const FREE_PAGES = [1, 2, 602, 603, 604];
+
+/**
+ * دالة التهيئة الرئيسية للتطبيق.
+ */
 async function initialize() {
-    console.log("التطبيق قيد التشغيل (وضع Supabase)...");
+    console.log("التطبيق قيد التشغيل...");
     setupEventListeners();
-    ui.initializeLockedOptions();
+    await quiz.initializeQuiz(); 
     await achievements.initializeAchievements();
-    await quiz.initializeQuiz();
     ui.showScreen(ui.startScreen);
-    console.log("التطبيق جاهز لتسجيل دخول المستخدم.");
+    console.log("التطبيق جاهز.");
 }
 
-// --- 2. ربط الأحداث (Event Listeners) ---
+/**
+ * ربط جميع مستمعي الأحداث لعناصر الواجهة.
+ */
 function setupEventListeners() {
-    console.log("جاري ربط مستمعي الأحداث...");
-    if (ui.startButton) {
-        ui.startButton.addEventListener('click', handleAuthentication);
-        console.log("تم ربط زر 'startButton' بنجاح.");
-    } else {
-        console.error("خطأ فادح: زر 'startButton' غير موجود في واجهة المستخدم (ui.js).");
-    }
-    ui.startTestButton.addEventListener('click', onStartTestButtonClick);
+    ui.startButton.addEventListener('click', handleAuthentication);
+    ui.startTestButton.addEventListener('click', onStartPageTestClick);
     ui.reloadButton.addEventListener('click', () => location.reload());
-    ui.storeButton.addEventListener('click', onStoreButtonClick);
-    ui.closeStoreButton.addEventListener('click', () => ui.showScreen(ui.startScreen));
-    ui.leaderboardButton.addEventListener('click', onLeaderboardButtonClick);
-    ui.closeLeaderboardButton.addEventListener('click', () => ui.showScreen(ui.startScreen));
     ui.showFinalResultButton.addEventListener('click', () => {
         const quizState = quiz.getCurrentState();
         const oldXp = player.playerData.xp - quizState.xpEarned;
         const levelUpInfo = progression.checkForLevelUp(oldXp, player.playerData.xp);
         ui.displayFinalResult(quizState, levelUpInfo);
     });
+
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => {
+            const tabId = button.dataset.tab;
+            ui.showTab(tabId);
+            if (tabId === 'leaderboard-tab' && !button.dataset.loaded) {
+                onLeaderboardTabClick();
+                button.dataset.loaded = 'true';
+            }
+        });
+    });
 }
 
-// --- 3. دوال التحكم الرئيسية ---
-async function handleAuthentication(event) {
-    if (event) event.preventDefault();
+/**
+ * معالجة عملية المصادقة (تسجيل الدخول أو إنشاء حساب).
+ */
+async function handleAuthentication() {
     const userName = ui.userNameInput.value.trim();
     if (!userName) {
         alert("يرجى إدخال اسمك للمتابعة.");
         return;
     }
-    console.log("بدء عملية المصادقة لـ:", userName);
+    ui.toggleLoader(true);
     const encodedUsername = btoa(unescape(encodeURIComponent(userName)));
     const safeEncodedUsername = encodedUsername.replace(/=/g, '').replace(/[^a-zA-Z0-9]/g, '');
     const email = `${safeEncodedUsername}@quran-quiz.app`;
-    const password = `default_password`;
-    ui.toggleLoader(true);
-    const { error: signInError } = await signInUser(email, password);
-    if (signInError) {
-        if (signInError.message.includes("Invalid login credentials")) {
-            console.log("المستخدم غير موجود، جاري إنشاء حساب جديد...");
-            const { error: signUpError } = await signUpUser(email, password, userName);
-            if (signUpError) {
-                ui.toggleLoader(false);
-                alert(`حدث خطأ أثناء إنشاء الحساب: ${signUpError.message}`);
-                return;
-            }
-            console.log("تم إنشاء الحساب بنجاح.");
-        } else {
-            ui.toggleLoader(false);
-            alert(`حدث خطأ أثناء تسجيل الدخول: ${signInError.message}`);
-            return;
-        }
-    } else {
-        console.log("تم تسجيل الدخول بنجاح.");
-    }
-    console.log("جاري جلب إعدادات اللعبة...");
-    const progressionInitialized = await progression.initializeProgression();
-    if (!progressionInitialized) {
+    const password = `default_password_for_${safeEncodedUsername}`;
+
+    const { error } = await api.signUpUser(email, password, userName);
+    if (error) {
         ui.toggleLoader(false);
-        alert("فشل تحميل إعدادات اللعبة. يرجى المحاولة مرة أخرى.");
+        alert(`حدث خطأ: ${error.message}`);
         return;
     }
-    console.log("جاري إعداد واجهة ما بعد تسجيل الدخول...");
+    
     await postLoginSetup();
     ui.toggleLoader(false);
-    console.log("اكتمل الإعداد.");
+    ui.showScreen(ui.mainInterface);
 }
 
+/**
+ * إعداد كل شيء بعد تسجيل دخول المستخدم بنجاح.
+ */
 async function postLoginSetup() {
     const playerLoaded = await player.loadPlayer();
     if (!playerLoaded) {
-        alert("فشل تحميل بيانات اللاعب. يرجى المحاولة مرة أخرى.");
+        alert("فشل تحميل بيانات اللاعب.");
         return;
     }
+
     const levelInfo = progression.getLevelInfo(player.playerData.xp);
-    ui.updatePlayerDisplay(player.playerData, levelInfo);
-    const rules = progression.getGameRules();
-    const allowedPages = rules.allowedPages || [];
-    const purchasedPages = player.playerData.inventory
-        .map(id => progression.getStoreItems().find(item => item.id === id))
-        .filter(item => item && item.type === 'page')
-        .map(item => parseInt(item.value, 10));
-    ui.populatePageSelect(allowedPages, purchasedPages);
+    ui.updatePlayerHeader(player.playerData, levelInfo);
+
+    // تحديث قائمة الصفحات المتاحة للاختبار
+    updateAvailablePages();
+
+    ui.populateQariSelect(ui.qariSelect, player.playerData.inventory);
     const maxQuestions = progression.getMaxQuestionsForLevel(levelInfo.level);
     ui.updateQuestionsCountOptions(maxQuestions);
-    ui.postLoginControls.classList.remove('hidden');
-    ui.startButton.textContent = "تغيير المستخدم";
-    ui.userNameInput.disabled = true;
+
+    const storeItems = await api.fetchStoreConfig();
+    if (storeItems) {
+        store.renderStoreItems(storeItems, player.playerData);
+    }
 }
 
-function onStartTestButtonClick() {
+/**
+ * تحديث قائمة الصفحات المتاحة للاختبار بناءً على المشتريات.
+ */
+export function updateAvailablePages() {
+    const purchasedPages = player.playerData.inventory
+        .filter(id => id.startsWith('page_'))
+        .map(id => parseInt(id.replace('page_', ''), 10));
+    
+    const availablePages = [...new Set([...FREE_PAGES, ...purchasedPages])].sort((a, b) => a - b);
+    ui.populateSelect(ui.pageSelect, availablePages, 'الصفحة');
+}
+
+/**
+ * بدء اختبار لصفحة محددة.
+ */
+function onStartPageTestClick() {
     const selectedPage = ui.pageSelect.value;
     if (!selectedPage) {
-        alert("يرجى اختيار صفحة لبدء الاختبار.");
+        alert("يرجى اختيار صفحة من الصفحات المتاحة لك.");
         return;
     }
     startTestWithSettings({
-        pageNumber: parseInt(selectedPage, 10),
+        pageNumbers: [parseInt(selectedPage, 10)],
         qari: ui.qariSelect.value,
         questionsCount: parseInt(ui.questionsCountSelect.value, 10),
-        userName: player.playerData.username
+        testName: `الصفحة ${selectedPage}`
     });
 }
 
-function onStoreButtonClick() {
-    if (!player.playerData.username) {
-        alert("يرجى تسجيل الدخول أولاً لزيارة المتجر.");
-        return;
-    }
-    store.openStore();
-}
-
-async function onLeaderboardButtonClick() {
-    if (!player.playerData.username) {
-        alert("يرجى تسجيل الدخول أولاً لعرض لوحة الصدارة.");
-        return;
-    }
-    ui.toggleLoader(true);
-    const leaderboardData = await fetchLeaderboard();
-    ui.toggleLoader(false);
+/**
+ * جلب وعرض بيانات لوحة الصدارة.
+ */
+async function onLeaderboardTabClick() {
+    ui.leaderboardList.innerHTML = '<p>جاري تحميل البيانات...</p>';
+    const leaderboardData = await api.fetchLeaderboard();
     if (leaderboardData) {
         ui.displayLeaderboard(leaderboardData);
-        ui.showScreen(ui.leaderboardScreen);
     } else {
-        alert("تعذر تحميل لوحة الصدارة. يرجى المحاولة مرة أخرى.");
+        ui.leaderboardList.innerHTML = '<p>تعذر تحميل لوحة الصدارة.</p>';
     }
 }
 
+/**
+ * دالة مركزية لبدء أي اختبار.
+ */
 async function startTestWithSettings(settings) {
-    if (!settings.pageNumber || isNaN(settings.pageNumber)) {
-        alert("رقم الصفحة غير صالح. يرجى تحديد صفحة من القائمة.");
-        return;
-    }
     ui.toggleLoader(true);
-    const pageAyahs = await fetchPageData(settings.pageNumber);
+    let allAyahs = [];
+    for (const pageNum of settings.pageNumbers) {
+        const pageAyahs = await api.fetchPageData(pageNum);
+        if (pageAyahs) {
+            allAyahs.push(...pageAyahs);
+        }
+    }
     ui.toggleLoader(false);
-    if (pageAyahs && pageAyahs.length > 0) {
+
+    if (allAyahs.length > 0) {
         quiz.start({
-            pageAyahs: pageAyahs,
+            pageAyahs: allAyahs,
             selectedQari: settings.qari,
             totalQuestions: settings.questionsCount,
-            userName: settings.userName,
-            pageNumber: settings.pageNumber
+            userName: player.playerData.username,
+            pageNumber: settings.pageNumbers[0]
         });
     } else {
-        alert(`تعذر تحميل بيانات الصفحة ${settings.pageNumber}. قد تكون الصفحة غير موجودة أو هناك مشكلة في الشبكة.`);
+        alert(`تعذر تحميل بيانات الاختبار لـ ${settings.testName}.`);
     }
 }
 
-// --- 4. تشغيل التطبيق ---
+// تشغيل التطبيق
 initialize();
