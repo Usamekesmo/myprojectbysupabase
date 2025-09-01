@@ -1,58 +1,61 @@
 // =============================================================
-// ==   وحدة الاتصالات الخارجية (API) - النسخة الكاملة والشاملة   ==
-// ==   (تجمع بين منطق المستخدمين ومنطق المشرف)                ==
+// ==      وحدة الاتصالات (API) - نسخة نهائية ومُصححة        ==
 // =============================================================
 
-// ▼▼▼ هذا هو السطر الذي تم التأكد من صحته ▼▼▼
-// المسار './config.js' يعني: "ابحث عن config.js في نفس المجلد الحالي (js)"
-import { supabase, QURAN_API_BASE_URL } from './config.js';
+import { supabase } from './config.js';
 
+const QURAN_API_BASE_URL = "https://api.alquran.cloud/v1";
 
-// --- 1. دوال المصادقة (Authentication) ---
+// --- 1. دوال المصادقة (Authentication ) ---
+
+/**
+ * يقوم بإنشاء حساب جديد للمستخدم، أو تسجيل دخوله إذا كان موجودًا بالفعل.
+ * هذا هو المنطق الأكثر استقرارًا.
+ * @param {string} email - البريد الإلكتروني للمستخدم.
+ * @param {string} password - كلمة المرور.
+ * @param {string} username - اسم المستخدم.
+ * @returns {Promise<{data: any, error: any}>}
+ */
 export async function signUpUser(email, password, username) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // الخطوة 1: محاولة إنشاء حساب جديد مباشرة
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: undefined }
+        options: {
+            data: {
+                username: username // إضافة اسم المستخدم مباشرة عند إنشاء الحساب
+            }
+        }
     });
 
-    if (authError) {
-        if (authError.message.includes("User already registered")) {
-            return signInUser(email, password);
+    // الخطوة 2: التحقق من نوع الخطأ
+    if (signUpError) {
+        // إذا كان الخطأ هو أن المستخدم مسجل بالفعل
+        if (signUpError.message.includes("User already registered")) {
+            console.log("المستخدم موجود بالفعل، جاري محاولة تسجيل الدخول...");
+            // قم بتسجيل دخوله بدلاً من ذلك
+            return await supabase.auth.signInWithPassword({ email, password });
         }
-        return { data: null, error: authError };
+        // إذا كان هناك أي خطأ آخر، قم بإرجاعه
+        return { data: null, error: signUpError };
     }
 
-    const { error: updateError } = await supabase
-        .from('players')
-        .update({ username: username })
-        .eq('id', authData.user.id);
-
-    if (updateError) {
-        console.error("نجح إنشاء الحساب ولكن فشل تحديث اسم المستخدم:", updateError);
-    }
-
-    return { data: authData, error: null };
+    // إذا نجحت عملية إنشاء الحساب بدون أخطاء، قم بإرجاع البيانات
+    return { data: signUpData, error: null };
 }
 
-export async function signInUser(email, password) {
-    return await supabase.auth.signInWithPassword({ email, password });
-}
 
 // --- 2. دوال جلب البيانات (Read Operations) ---
+
+/**
+ * جلب بيانات اللاعب الحالي المسجل دخوله.
+ * @returns {Promise<object|null>}
+ */
 export async function fetchPlayer() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const tryFetch = async () => supabase.from('players').select('*').eq('id', user.id).single();
-    let { data, error } = await tryFetch();
-
-    if (error && error.code === 'PGRST116') {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const { data: retryData, error: retryError } = await tryFetch();
-        data = retryData;
-        error = retryError;
-    }
+    const { data, error } = await supabase.from('players').select('*').eq('id', user.id).single();
 
     if (error) {
         console.error("خطأ في جلب بيانات اللاعب:", error);
@@ -61,41 +64,49 @@ export async function fetchPlayer() {
     return data;
 }
 
-async function fetchConfigTable(tableName) {
-    const { data, error } = await supabase.from(tableName).select('*');
+/**
+ * جلب جميع عناصر المتجر من قاعدة البيانات.
+ * @returns {Promise<Array|null>}
+ */
+export async function fetchStoreConfig() {
+    const { data, error } = await supabase.from('store_config').select('*').order('sort_order', { ascending: true });
     if (error) {
-        console.error(`خطأ في جلب جدول ${tableName}:`, error);
+        console.error(`خطأ في جلب جدول store_config:`, error);
         return null;
     }
     return data || [];
 }
 
+/**
+ * جلب إعدادات الأسئلة النشطة.
+ * @returns {Promise<Array|null>}
+ */
 export async function fetchQuestionsConfig() {
-    return fetchConfigTable('questions_config');
-}
-
-export async function fetchProgressionConfig() {
-    const { data, error } = await supabase.rpc('get_progression_config');
-    if (error) {
-        console.error("خطأ في جلب إعدادات التقدم:", error);
-        return null;
-    }
-    return data ? data[0] : null;
-}
-
-export async function fetchGameRules() {
-    const { data, error } = await supabase.from('game_rules').select('*').single();
-    if (error) {
-        console.error("خطأ في جلب قواعد اللعبة:", error);
-        return null;
+    // هذا الجدول يجب إنشاؤه في Supabase إذا كنت تريد التحكم في الأسئلة من هناك
+    // حاليًا، سنرجع قائمة ثابتة إذا لم يكن الجدول موجودًا
+    const { data, error } = await supabase.from('questions_config').select('*');
+    if (error || !data || data.length === 0) {
+        console.warn("لم يتم العثور على جدول 'questions_config'. سيتم استخدام الأسئلة الافتراضية.");
+        return [
+            { id: 'generateChooseNextQuestion', level_required: 1 },
+            { id: 'generateLocateAyahQuestion', level_required: 1 },
+            { id: 'generateCompleteLastWordQuestion', level_required: 2 },
+            { id: 'generateIdentifyAyahNumberQuestion', level_required: 3 },
+            { id: 'generateCompleteAyahQuestion', level_required: 4 },
+            { id: 'generateIdentifyAyahEndQuestion', level_required: 5 },
+            { id: 'generateFindUniqueWordQuestion', level_required: 6 },
+            { id: 'generateCountWordQuestion', level_required: 7 },
+            { id: 'generateChoosePreviousQuestion', level_required: 8 },
+            { id: 'generateVisualMapQuestion', level_required: 10 }
+        ];
     }
     return data;
 }
 
-export async function fetchAchievementsConfig() {
-    return fetchConfigTable('achievements_config');
-}
-
+/**
+ * جلب أفضل 10 لاعبين في لوحة الصدارة.
+ * @returns {Promise<Array|null>}
+ */
 export async function fetchLeaderboard() {
     const { data, error } = await supabase.from('players').select('username, xp').order('xp', { ascending: false }).limit(10);
     if (error) {
@@ -105,6 +116,11 @@ export async function fetchLeaderboard() {
     return data || [];
 }
 
+/**
+ * جلب بيانات صفحة معينة من القرآن من واجهة برمجة تطبيقات خارجية.
+ * @param {number} pageNumber - رقم الصفحة.
+ * @returns {Promise<Array|null>}
+ */
 export async function fetchPageData(pageNumber) {
     try {
         const response = await fetch(`${QURAN_API_BASE_URL}/page/${pageNumber}/quran-uthmani`);
@@ -118,18 +134,31 @@ export async function fetchPageData(pageNumber) {
     }
 }
 
+
 // --- 3. دوال حفظ البيانات (Write Operations) ---
+
+/**
+ * حفظ بيانات اللاعب المحدثة في قاعدة البيانات.
+ * @param {object} playerData - بيانات اللاعب.
+ */
 export async function savePlayer(playerData) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { id, created_at, email, isNew, dailyQuizzes, ...updatableData } = playerData;
-    const { error } = await supabase.from('players').update(updatableData).eq('id', user.id);
-    if (error) console.error("خطأ في حفظ بيانات اللاعب:", error);
+    const { id, ...updatableData } = playerData;
+    const { error } = await supabase.from('players').update(updatableData).eq('id', id);
+    if (error) {
+        console.error("خطأ في حفظ بيانات اللاعب:", error);
+    } else {
+        console.log("تم حفظ بيانات اللاعب بنجاح.");
+    }
 }
 
+/**
+ * حفظ نتيجة الاختبار في قاعدة البيانات.
+ * @param {object} resultData - بيانات نتيجة الاختبار.
+ */
 export async function saveResult(resultData) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
     const dataToSave = {
         user_id: user.id,
         page_number: resultData.pageNumber,
@@ -139,55 +168,7 @@ export async function saveResult(resultData) {
         errors: resultData.errorLog
     };
     const { error } = await supabase.from('quiz_results').insert([dataToSave]);
-    if (error) console.error("خطأ في حفظ نتيجة الاختبار:", error);
-}
-
-
-// =============================================================
-// ==      دوال المشرف (Admin Operations)                     ==
-// =============================================================
-
-export async function fetchAllPlayers() {
-    const { data, error } = await supabase.rpc('get_all_players');
     if (error) {
-        console.error("خطأ في جلب كل اللاعبين:", error);
-        return null;
+        console.error("خطأ في حفظ نتيجة الاختبار:", error);
     }
-    return data;
-}
-
-export async function fetchAllStoreItems() {
-    return fetchConfigTable('store_config');
-}
-
-export async function addStoreItem(item) {
-    const { error } = await supabase.from('store_config').insert([item]);
-    if (error) console.error("خطأ في إضافة عنصر للمتجر:", error);
-}
-
-export async function deleteStoreItem(itemId) {
-    const { error } = await supabase.from('store_config').delete().eq('id', itemId);
-    if (error) console.error("خطأ في حذف عنصر من المتجر:", error);
-}
-
-export async function getDashboardStats() {
-    const { data, error } = await supabase.rpc('get_dashboard_stats');
-    if (error) {
-        console.error("خطأ في جلب إحصائيات لوحة التحكم:", error);
-        return null;
-    }
-    return data ? data[0] : null;
-}
-
-export async function updatePlayerByAdmin(playerId, updates) {
-    const { error } = await supabase.rpc('update_player_by_admin', {
-        player_id: playerId,
-        new_username: updates.username,
-        new_xp: updates.xp,
-        new_diamonds: updates.diamonds
-    });
-    if (error) {
-        console.error("خطأ في تحديث اللاعب بواسطة المشرف:", error);
-    }
-    return { error };
 }
