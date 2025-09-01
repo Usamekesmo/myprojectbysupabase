@@ -1,46 +1,53 @@
 // =============================================================
-// ==      وحدة نظام الإنجازات (مع Supabase) (النسخة النهائية)  ==
+// ==      وحدة نظام الإنجازات (Achievements) - نسخة نهائية ومبسطة  ==
 // =============================================================
 
-import { fetchAchievementsConfig } from './api.js';
 import * as player from './player.js';
 import * as ui from './ui.js';
 import * as progression from './progression.js';
 
-let achievementsConfig = [];
+// ▼▼▼ التعديل هنا: تم تعريف الإنجازات بشكل ثابت داخل الكود ▼▼▼
+const achievementsConfig = [
+    // إنجازات المستويات
+    { id: 1, name: "الوصول للمستوى 5",    trigger_event: "login", target_property: "level", comparison: ">=", target_value: 5,  xp_reward: 50,  diamonds_reward: 25 },
+    { id: 2, name: "الوصول للمستوى 10",   trigger_event: "login", target_property: "level", comparison: ">=", target_value: 10, xp_reward: 100, diamonds_reward: 50 },
+
+    // إنجازات الاختبارات
+    { id: 3, name: "أول اختبار ناجح",     trigger_event: "quiz_completed", target_property: "totalQuizzes", comparison: "===", target_value: 1, xp_reward: 20, diamonds_reward: 10 },
+    { id: 4, name: "أداء مثالي!",         trigger_event: "quiz_completed", target_property: "isPerfect",    comparison: "===", target_value: true, xp_reward: 30, diamonds_reward: 15 },
+
+    // إنجازات المتجر
+    { id: 5, name: "المشتري الأول",       trigger_event: "item_purchased", target_property: "inventorySize", comparison: "===", target_value: 1, xp_reward: 10, diamonds_reward: 5 }
+];
+// ▲▲▲ نهاية التعديل ▲▲▲
+
 
 /**
- * يقوم بتهيئة الوحدة عن طريق جلب إعدادات الإنجازات من قاعدة البيانات.
+ * دالة وهمية للتهيئة (لم نعد بحاجة لجلب شيء من الشبكة).
  */
 export async function initializeAchievements() {
-    achievementsConfig = await fetchAchievementsConfig();
-    if (achievementsConfig && achievementsConfig.length > 0) {
-        console.log(`تم تحميل ${achievementsConfig.length} إنجاز من قاعدة البيانات.`);
-    } else {
-        console.warn("لم يتم العثور على إعدادات للإنجازات أو فشل في جلبها.");
-    }
+    // ▼▼▼ التعديل هنا: تم حذف استدعاء fetchAchievementsConfig ▼▼▼
+    console.log(`تم تحميل ${achievementsConfig.length} إنجاز من الإعدادات المحلية.`);
+    // ▲▲▲ نهاية التعديل ▲▲▲
 }
 
 /**
- * الدالة الرئيسية التي يتم استدعاؤها من أجزاء مختلفة من التطبيق للتحقق من الإنجازات.
+ * الدالة الرئيسية التي يتم استدعاؤها للتحقق من الإنجازات.
  * @param {string} eventName - اسم الحدث الذي وقع (مثل 'login', 'quiz_completed').
- * @param {object} eventData - بيانات إضافية متعلقة بالحدث (مثل نتيجة الاختبار).
+ * @param {object} eventData - بيانات إضافية متعلقة بالحدث.
  */
 export function checkAchievements(eventName, eventData = {}) {
     if (!achievementsConfig || achievementsConfig.length === 0) {
         return;
     }
 
-    // فلترة الإنجازات التي تستجيب لهذا الحدث المحدد
     const relevantAchievements = achievementsConfig.filter(ach => ach.trigger_event === eventName);
 
     for (const achievement of relevantAchievements) {
-        // التأكد من أن اللاعب لم يحصل على هذا الإنجاز من قبل
         if (player.playerData.achievements.includes(achievement.id)) {
             continue;
         }
 
-        // التحقق من شرط الإنجاز
         if (isConditionMet(achievement, eventData)) {
             grantAchievement(achievement);
         }
@@ -49,14 +56,10 @@ export function checkAchievements(eventName, eventData = {}) {
 
 /**
  * يتحقق مما إذا كان شرط إنجاز معين قد تحقق.
- * @param {object} achievement - كائن إعدادات الإنجاز.
- * @param {object} eventData - بيانات الحدث.
- * @returns {boolean} - `true` إذا تحقق الشرط.
  */
 function isConditionMet(achievement, eventData) {
-    // بناء كائن بيانات شامل للتحقق منه
     const dataContext = {
-        ...eventData, // بيانات الحدث المباشرة (score, errors, etc.)
+        ...eventData,
         xp: player.playerData.xp,
         diamonds: player.playerData.diamonds,
         level: progression.getLevelInfo(player.playerData.xp).level,
@@ -67,48 +70,27 @@ function isConditionMet(achievement, eventData) {
     const propertyValue = dataContext[achievement.target_property];
     const targetValue = achievement.target_value;
 
-    // إذا كانت الخاصية المستهدفة غير موجودة، فالشرط لم يتحقق
     if (propertyValue === undefined) {
         return false;
     }
 
-    // تحويل القيمة المستهدفة إلى رقم إذا كانت الخاصية رقمية
-    const numericTargetValue = !isNaN(Number(targetValue)) ? Number(targetValue) : targetValue;
-
     switch (achievement.comparison) {
-        case '===':
-            return propertyValue === numericTargetValue;
-        case '>=':
-            return propertyValue >= numericTargetValue;
-        case '<=':
-            return propertyValue <= numericTargetValue;
-        case 'includes':
-            return Array.isArray(propertyValue) && propertyValue.includes(numericTargetValue);
-        case '!==':
-            return propertyValue !== numericTargetValue;
-        default:
-            return false;
+        case '===': return propertyValue === targetValue;
+        case '>=':  return propertyValue >= targetValue;
+        case '<=':  return propertyValue <= targetValue;
+        default:    return false;
     }
 }
 
 /**
  * يمنح اللاعب إنجازًا ومكافآته.
- * @param {object} achievement - كائن الإنجاز الذي تم تحقيقه.
  */
 function grantAchievement(achievement) {
     console.log(`تهانينا! تم تحقيق الإنجاز: ${achievement.name}`);
 
-    // 1. إضافة الإنجاز إلى بيانات اللاعب
     player.playerData.achievements.push(achievement.id);
-
-    // 2. إضافة المكافآت
     player.playerData.xp += achievement.xp_reward;
     player.playerData.diamonds += achievement.diamonds_reward;
 
-    // 3. إظهار إشعار مرئي للمستخدم
     ui.showAchievementToast(achievement);
-
-    // ملاحظة: لا يتم استدعاء savePlayer() هنا.
-    // يجب أن يتم الحفظ في نهاية العملية الرئيسية (مثل نهاية الاختبار)
-    // لضمان حفظ كل التغييرات مرة واحدة.
 }
